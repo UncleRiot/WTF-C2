@@ -1,8 +1,8 @@
-# WTF C²
+# c² flux - Tree Scanner
 
 **The next generation of WTF.**
 
-WTF C² introduces a completely redesigned user interface and significantly improved performance.
+c² flux - Tree Scanner introduces a completely redesigned user interface and significantly improved performance.
 
 ## Highlights
 
@@ -10,7 +10,7 @@ WTF C² introduces a completely redesigned user interface and significantly impr
 * Faster performance
 * Independently developed next-generation version
 
-> **WTF C² — faster, cleaner, further.**
+> **c² flux - Tree Scanner — faster, cleaner, further.**
 
 ## Coming Soon
 
