@@ -1,0 +1,461 @@
+﻿using System;
+using System.Drawing;
+using System.IO;
+using System.Net.Http;
+using System.Reflection;
+using System.Text.Json;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace c2flux
+{
+    public sealed class AboutForm : Form
+    {
+
+        private readonly AppSettings _settings;
+
+        private PictureBox pictureBoxMolotov;
+        private Label labelTitle;
+        private Label labelCopyright;
+        private Label labelVersion;
+        private LinkLabel linkLabelUpdate;
+        private LinkLabel linkLabelGithub;
+        private LinkLabel linkLabelHelp;
+        private Label labelKoFiText;
+        private PictureBox pictureBoxKoFi;
+        private AntdUI.Button buttonOk;
+
+        public AboutForm(AppSettings settings)
+        {
+            _settings = settings;
+
+            InitializeComponent();
+            AntdThemeService.Apply(this, _settings.Layout);
+            ConfigureImageBackgrounds();
+            ConfigureLinkColors();
+
+            if (_settings.AutoCheckForUpdates)
+            {
+                UpdateGitHubStatusAsync();
+            }
+            else
+            {
+                linkLabelUpdate.Text =
+                    LocalizationService.GetText("About.UpdateCheckDisabled");
+                linkLabelUpdate.Enabled = false;
+            }
+        }
+        private void ConfigureImageBackgrounds()
+        {
+            pictureBoxMolotov.BackColor = Color.Transparent;
+            pictureBoxKoFi.BackColor = Color.Transparent;
+        }
+
+        private void ConfigureLinkColors()
+        {
+            bool useDarkMode = BackColor.GetBrightness() < 0.5f;
+            Color linkColor = useDarkMode
+                ? Color.FromArgb(140, 200, 255)
+                : SystemColors.HotTrack;
+
+            Color activeLinkColor = useDarkMode
+                ? Color.FromArgb(185, 220, 255)
+                : Color.Red;
+
+            linkLabelUpdate.LinkColor = linkColor;
+            linkLabelUpdate.ActiveLinkColor = activeLinkColor;
+            linkLabelUpdate.VisitedLinkColor = linkColor;
+
+            linkLabelGithub.LinkColor = linkColor;
+            linkLabelGithub.ActiveLinkColor = activeLinkColor;
+            linkLabelGithub.VisitedLinkColor = linkColor;
+
+            linkLabelHelp.LinkColor = linkColor;
+            linkLabelHelp.ActiveLinkColor = activeLinkColor;
+            linkLabelHelp.VisitedLinkColor = linkColor;
+        }
+
+        private void InitializeComponent()
+        {
+            Text = LocalizationService.Format(
+                "About.Title",
+                AppConstants.ApplicationName);
+            Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            StartPosition = FormStartPosition.CenterParent;
+            ClientSize = new Size(475, 309);
+            MinimumSize = Size;
+            MaximumSize = Size;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            ShowInTaskbar = false;
+            DoubleBuffered = true;
+
+            pictureBoxMolotov = new PictureBox
+            {
+                Name = "pictureBoxMolotov",
+                Image = CreateCircularMolotovImage(),
+                Size = new Size(82, 82),
+                Location = new Point(20, 24),
+                SizeMode = PictureBoxSizeMode.CenterImage,
+                BackColor = Color.Transparent
+            };
+
+            labelTitle = new Label
+            {
+                Name = "labelTitle",
+                Text = AppConstants.FullApplicationName,
+                Font = new Font(SystemFonts.MessageBoxFont, FontStyle.Bold),
+                AutoSize = true,
+                Location = new Point(122, 26),
+                BackColor = Color.Transparent
+            };
+
+            labelCopyright = new Label
+            {
+                Name = "labelCopyright",
+                Text = AppConstants.CopyrightText,
+                AutoSize = true,
+                Location = new Point(122, 58),
+                BackColor = Color.Transparent
+            };
+
+            labelVersion = new Label
+            {
+                Name = "labelVersion",
+                Text = LocalizationService.GetText("About.VersionPrefix") + GetApplicationVersionText(),
+                AutoSize = true,
+                Location = new Point(122, 82),
+                BackColor = Color.Transparent
+            };
+
+            linkLabelUpdate = new LinkLabel
+            {
+                Name = "linkLabelUpdate",
+                Text = LocalizationService.GetText("About.UpdateChecking"),
+                AutoSize = true,
+                Location = new Point(122, 106),
+                BackColor = Color.Transparent,
+                LinkBehavior = LinkBehavior.NeverUnderline
+            };
+
+            linkLabelUpdate.LinkClicked += linkLabelUpdate_LinkClicked;
+
+            linkLabelGithub = new LinkLabel
+            {
+                Name = "linkLabelGithub",
+                Text = AppConstants.GitHubRepositoryUrl,
+                AutoSize = true,
+                Location = new Point(122, 130),
+                BackColor = Color.Transparent,
+                LinkBehavior = LinkBehavior.HoverUnderline
+            };
+
+            linkLabelGithub.LinkClicked += linkLabelGithub_LinkClicked;
+
+            linkLabelHelp = new LinkLabel
+            {
+                Name = "linkLabelHelp",
+                Text = "Help: " + AppConstants.HelpUrl,
+                AutoSize = true,
+                Location = new Point(122, 154),
+                BackColor = Color.Transparent,
+                LinkBehavior = LinkBehavior.HoverUnderline
+            };
+
+            linkLabelHelp.LinkClicked += linkLabelHelp_LinkClicked;
+
+            labelKoFiText = new Label
+            {
+                Name = "labelKoFiText",
+                Text = LocalizationService.Format(
+                           "About.FreeText",
+                           AppConstants.ApplicationName) +
+                       Environment.NewLine +
+                       LocalizationService.GetText("About.SupportText"),
+                AutoSize = false,
+                Location = new Point(20, 194),
+                Size = new Size(435, 38),
+                BackColor = Color.Transparent
+            };
+
+            pictureBoxKoFi = new PictureBox
+            {
+                Name = "pictureBoxKoFi",
+                Image = CreateKoFiImage(),
+                Size = new Size(179, 42),
+                Location = new Point(20, 244),
+                SizeMode = PictureBoxSizeMode.StretchImage,
+                BackColor = Color.Transparent,
+                Cursor = Cursors.Hand
+            };
+
+            pictureBoxKoFi.Click += pictureBoxKoFi_Click;
+
+            buttonOk = new AntdUI.Button
+            {
+                Name = "buttonOk",
+                Text = LocalizationService.GetText("Common.OK"),
+                Size = new Size(90, 32),
+                Location = new Point(365, 254),
+                Type = AntdUI.TTypeMini.Primary,
+                DialogResult = DialogResult.OK
+            };
+
+            Controls.Add(pictureBoxMolotov);
+            Controls.Add(labelTitle);
+            Controls.Add(labelCopyright);
+            Controls.Add(labelVersion);
+            Controls.Add(linkLabelUpdate);
+            Controls.Add(linkLabelGithub);
+            Controls.Add(linkLabelHelp);
+            Controls.Add(labelKoFiText);
+            Controls.Add(pictureBoxKoFi);
+            Controls.Add(buttonOk);
+
+            AcceptButton = buttonOk;
+        }
+
+        private Bitmap CreateCircularMolotovImage()
+        {
+            Bitmap output = new Bitmap(82, 82, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+
+            using Graphics graphics = Graphics.FromImage(output);
+            graphics.Clear(Color.Transparent);
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceOver;
+            graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+            graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+
+            using Stream stream = typeof(AboutForm).Assembly.GetManifestResourceStream("c2flux.Ressources.molotov.jpg");
+
+            if (stream == null)
+            {
+                using Pen fallbackPen = new Pen(Color.SteelBlue, 2);
+                graphics.DrawEllipse(fallbackPen, 3, 3, 76, 76);
+                return output;
+            }
+
+            using Image sourceImage = Image.FromStream(stream);
+            using System.Drawing.Drawing2D.GraphicsPath path = new System.Drawing.Drawing2D.GraphicsPath();
+
+            path.AddEllipse(3, 3, 76, 76);
+            graphics.SetClip(path);
+
+            float scale = Math.Max(76f / sourceImage.Width, 76f / sourceImage.Height);
+            int scaledWidth = (int)(sourceImage.Width * scale);
+            int scaledHeight = (int)(sourceImage.Height * scale);
+            int x = 3 + (76 - scaledWidth) / 2;
+            int y = 3 + (76 - scaledHeight) / 2;
+
+            graphics.DrawImage(sourceImage, x, y, scaledWidth, scaledHeight);
+            graphics.ResetClip();
+
+            using Pen borderPen = new Pen(Color.SteelBlue, 2);
+            graphics.DrawEllipse(borderPen, 3, 3, 76, 76);
+
+            return output;
+        }
+
+        private Image CreateKoFiImage()
+        {
+            using Stream stream = typeof(AboutForm).Assembly.GetManifestResourceStream("c2flux.Ressources.ko-fi.png");
+
+            if (stream == null)
+            {
+                return new Bitmap(179, 42, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            }
+
+            using Image sourceImage = Image.FromStream(stream);
+            Bitmap output = new Bitmap(sourceImage.Width, sourceImage.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+
+            using (Graphics graphics = Graphics.FromImage(output))
+            {
+                graphics.Clear(Color.Transparent);
+                graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceOver;
+                graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+                graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                graphics.DrawImage(sourceImage, 0, 0, sourceImage.Width, sourceImage.Height);
+            }
+
+            output.MakeTransparent(Color.White);
+
+            return output;
+        }
+
+        private string GetApplicationVersionText()
+        {
+            Assembly assembly = typeof(AboutForm).Assembly;
+
+            foreach (object attribute in assembly.GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false))
+            {
+                if (attribute is AssemblyInformationalVersionAttribute informationalVersionAttribute &&
+                    !string.IsNullOrWhiteSpace(informationalVersionAttribute.InformationalVersion))
+                {
+                    return informationalVersionAttribute.InformationalVersion.Split('+')[0];
+                }
+            }
+
+            Version version = assembly.GetName().Version;
+
+            if (version == null)
+            {
+                return LocalizationService.GetText("Common.Unknown");
+            }
+
+            return version.Major + "." + version.Minor + "." + version.Build;
+        }
+
+        private async void UpdateGitHubStatusAsync()
+        {
+            linkLabelUpdate.Text = LocalizationService.GetText("About.UpdateChecking");
+            linkLabelUpdate.Tag = string.Empty;
+            linkLabelUpdate.Links.Clear();
+
+            GitHubUpdateResult result = await CheckForUpdateAsync(GetApplicationVersionText());
+
+            if (IsDisposed)
+                return;
+
+            linkLabelUpdate.Tag = string.Empty;
+            linkLabelUpdate.Links.Clear();
+
+            if (!result.CanConnectToGitHub)
+            {
+                linkLabelUpdate.Text = LocalizationService.GetText("About.GitHubUnavailable");
+                linkLabelUpdate.LinkBehavior = LinkBehavior.NeverUnderline;
+                return;
+            }
+
+            if (!result.UpdateAvailable)
+            {
+                linkLabelUpdate.Text = LocalizationService.GetText("About.NoNewVersion");
+                linkLabelUpdate.LinkBehavior = LinkBehavior.NeverUnderline;
+                return;
+            }
+
+            linkLabelUpdate.Text = LocalizationService.Format("About.UpdateAvailable", result.LatestVersion);
+            linkLabelUpdate.Tag = result.DownloadUrl;
+            linkLabelUpdate.LinkBehavior = LinkBehavior.HoverUnderline;
+            linkLabelUpdate.Links.Add(0, linkLabelUpdate.Text.Length);
+        }
+
+        private async Task<GitHubUpdateResult> CheckForUpdateAsync(string currentVersionText)
+        {
+            try
+            {
+                using HttpClient httpClient = new HttpClient();
+                httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
+                    AppConstants.GitHubUserAgent);
+
+                string json = await httpClient.GetStringAsync(AppConstants.GitHubLatestReleaseApiUrl);
+
+                using JsonDocument jsonDocument = JsonDocument.Parse(json);
+                JsonElement root = jsonDocument.RootElement;
+
+                string latestVersionText = root.TryGetProperty("tag_name", out JsonElement tagNameElement)
+                    ? NormalizeVersionText(tagNameElement.GetString())
+                    : string.Empty;
+
+                string downloadUrl = root.TryGetProperty("html_url", out JsonElement htmlUrlElement)
+                    ? htmlUrlElement.GetString()
+                    : AppConstants.GitHubRepositoryUrl;
+
+                bool updateAvailable = IsNewerVersion(latestVersionText, currentVersionText);
+
+                return new GitHubUpdateResult
+                {
+                    CanConnectToGitHub = true,
+                    UpdateAvailable = updateAvailable,
+                    LatestVersion = latestVersionText,
+                    DownloadUrl = downloadUrl
+                };
+            }
+            catch
+            {
+                return new GitHubUpdateResult
+                {
+                    CanConnectToGitHub = false,
+                    UpdateAvailable = false,
+                    LatestVersion = string.Empty,
+                    DownloadUrl = string.Empty
+                };
+            }
+        }
+
+        private string NormalizeVersionText(string versionText)
+        {
+            if (string.IsNullOrWhiteSpace(versionText))
+            {
+                return string.Empty;
+            }
+
+            return versionText.Trim().TrimStart('v', 'V');
+        }
+
+        private bool IsNewerVersion(string latestVersionText, string currentVersionText)
+        {
+            if (!Version.TryParse(NormalizeVersionText(latestVersionText), out Version latestVersion))
+            {
+                return false;
+            }
+
+            if (!Version.TryParse(NormalizeVersionText(currentVersionText), out Version currentVersion))
+            {
+                return false;
+            }
+
+            return latestVersion > currentVersion;
+        }
+
+        private void linkLabelUpdate_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            string downloadUrl = linkLabelUpdate.Tag == null ? string.Empty : linkLabelUpdate.Tag.ToString();
+
+            if (string.IsNullOrWhiteSpace(downloadUrl))
+                return;
+
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = downloadUrl,
+                UseShellExecute = true
+            });
+        }
+
+        private void linkLabelGithub_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = AppConstants.GitHubRepositoryUrl,
+                UseShellExecute = true
+            });
+        }
+
+        private void linkLabelHelp_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = AppConstants.HelpUrl,
+                UseShellExecute = true
+            });
+        }
+
+        private void pictureBoxKoFi_Click(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = AppConstants.KoFiUrl,
+                UseShellExecute = true
+            });
+        }
+
+        private sealed class GitHubUpdateResult
+        {
+            public bool CanConnectToGitHub { get; set; }
+            public bool UpdateAvailable { get; set; }
+            public string LatestVersion { get; set; }
+            public string DownloadUrl { get; set; }
+        }
+    }
+}

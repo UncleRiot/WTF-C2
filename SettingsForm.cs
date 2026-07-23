@@ -1,0 +1,1552 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
+using System.Text.Json;
+using System.Windows.Forms;
+
+
+
+namespace c2flux
+{
+    public sealed class SettingsForm : Form
+    {
+        private readonly AppSettings _settings;
+
+        private AntdUI.Button buttonGeneralTab;
+        private AntdUI.Button buttonExportTab;
+        private AntdUI.Button buttonColorsTab;
+        private AntdUI.Button buttonLayoutTab;
+        private AntdUI.Button buttonStatisticsTab;
+        private AntdUI.Button buttonLoggingTab;
+        private Panel panelPageHost;
+        private Panel panelGeneral;
+        private Panel panelExport;
+        private Panel panelColors;
+        private Panel panelLayout;
+        private Panel panelStatistics;
+        private Panel panelLogging;
+        private AntdUI.Checkbox checkBoxShowFilesInTree;
+        private AntdUI.Checkbox checkBoxSkipReparsePoints;
+        private AntdUI.Checkbox checkBoxShowPartitionPanel;
+        private AntdUI.Checkbox checkBoxStartElevatedOnStartup;
+        private AntdUI.Checkbox checkBoxShowElevationPromptOnStartup;
+        private AntdUI.Checkbox checkBoxShellContextMenuEnabled;
+        private AntdUI.Checkbox checkBoxAutoCheckForUpdates;
+        private AntdUI.Label labelLanguage;
+        private AntdUI.Select comboBoxLanguage;
+        private AntdUI.Button buttonAddLanguage;
+        private AntdUI.Button buttonDeleteLanguage;
+        private ToolTip toolTip;
+        private AntdUI.Label labelLayout;
+        private AntdUI.Select comboBoxLayout;
+        private AntdUI.Checkbox checkBoxExportPath;
+        private AntdUI.Checkbox checkBoxExportSizeGb;
+        private AntdUI.Checkbox checkBoxExportSizeMb;
+        private AntdUI.Label labelExportMaxDepth;
+        private AntdUI.Input textBoxExportMaxDepth;
+        private AntdUI.Label labelPartitionFillLight;
+        private AntdUI.Button buttonPartitionFillLightColor;
+        private Panel panelPartitionFillLightPreview;
+        private AntdUI.Label labelPartitionFillDark;
+        private AntdUI.Button buttonPartitionFillDarkColor;
+        private Panel panelPartitionFillDarkPreview;
+        private Color partitionFillLightColor;
+        private Color partitionFillDarkColor;
+        private AntdUI.Label labelBarChartBarHeight;
+        private AntdUI.Input textBoxBarChartBarHeight;
+        private AntdUI.Label labelBarChartBarHeightDefault;
+        private AntdUI.Checkbox checkBoxSaveScanHistory;
+        private AntdUI.Label labelScanHistoryDatabasePath;
+        private AntdUI.Input textBoxScanHistoryDatabasePath;
+        private AntdUI.Button buttonBrowseScanHistoryDatabasePath;
+        private AntdUI.Label labelScanHistoryDatabaseMoveHint;
+        private AntdUI.Label labelScanHistoryDatabaseSize;
+        private AntdUI.Label labelScanHistoryMaximumScansPerPath;
+        private AntdUI.Input textBoxScanHistoryMaximumScansPerPath;
+        private AntdUI.Label labelLogLevel;
+        private AntdUI.Select comboBoxLogLevel;
+        private AntdUI.Checkbox checkBoxAutoSaveLog;
+        private AntdUI.Label labelMaximumLogFileSizeMb;
+        private AntdUI.Input textBoxMaximumLogFileSizeMb;
+        private AntdUI.Label labelMaximumLogFileSizeUnit;
+        private AntdUI.Button buttonOk;
+        private AntdUI.Button buttonCancel;
+        private DatabasePathSelectionMode selectedDatabasePathSelectionMode;
+
+        public SettingsForm(AppSettings settings)
+        {
+            _settings = settings;
+            _settings.ScanHistoryDatabasePath = ScanHistoryService.NormalizeDatabasePath(
+                _settings.ScanHistoryDatabasePath);
+            ScanHistoryService.ConfigureDatabasePath(_settings.ScanHistoryDatabasePath);
+
+            AntdThemeService.Apply(_settings.Layout);
+            AntdThemeService.Apply(this, _settings.Layout);
+            InitializeComponent();
+            LoadSettings();
+            ShowPage(panelGeneral);
+        }
+
+        private void InitializeComponent()
+        {
+            Color backgroundPrimary = AntdThemeService.BackgroundPrimary;
+            Color backgroundSecondary = AntdThemeService.BackgroundSecondary;
+            Color borderColor = AntdThemeService.SurfaceHighlight;
+
+            Text = LocalizationService.GetText("Settings.Title");
+            Icon = AppResources.ApplicationIcon;
+            StartPosition = FormStartPosition.CenterParent;
+            ClientSize = new Size(
+                AntdThemeService.SettingsDialogWidth,
+                AntdThemeService.SettingsDialogHeight);
+            MinimumSize = Size;
+            MaximumSize = Size;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            ShowInTaskbar = false;
+            KeyPreview = true;
+            BackColor = backgroundPrimary;
+            ForeColor = AntdThemeService.TextPrimary;
+            KeyDown += SettingsForm_KeyDown;
+
+            buttonGeneralTab = new AntdUI.Button
+            {
+                Name = "buttonGeneralTab",
+                Text = LocalizationService.GetText("Settings.General"),
+                Location = new Point(
+                    AntdThemeService.SettingsDialogGeneralTabLeft,
+                    AntdThemeService.SettingsDialogGeneralTabTop),
+                Size = new Size(
+                    AntdThemeService.SettingsDialogGeneralTabWidth,
+                    AntdThemeService.SettingsDialogGeneralTabHeight),
+                Type = AntdUI.TTypeMini.Default
+            };
+            buttonGeneralTab.Click += buttonGeneralTab_Click;
+
+            buttonExportTab = new AntdUI.Button
+            {
+                Name = "buttonExportTab",
+                Text = LocalizationService.GetText("Settings.Export"),
+                Location = new Point(
+                    AntdThemeService.SettingsDialogExportTabLeft,
+                    AntdThemeService.SettingsDialogExportTabTop),
+                Size = new Size(
+                    AntdThemeService.SettingsDialogExportTabWidth,
+                    AntdThemeService.SettingsDialogExportTabHeight),
+                Type = AntdUI.TTypeMini.Default
+            };
+            buttonExportTab.Click += buttonExportTab_Click;
+
+            buttonColorsTab = new AntdUI.Button
+            {
+                Name = "buttonColorsTab",
+                Text = LocalizationService.GetText("Settings.Colors"),
+                Location = new Point(
+                    AntdThemeService.SettingsDialogColorsTabLeft,
+                    AntdThemeService.SettingsDialogColorsTabTop),
+                Size = new Size(
+                    AntdThemeService.SettingsDialogColorsTabWidth,
+                    AntdThemeService.SettingsDialogColorsTabHeight),
+                Type = AntdUI.TTypeMini.Default
+            };
+            buttonColorsTab.Click += buttonColorsTab_Click;
+
+            buttonLayoutTab = new AntdUI.Button
+            {
+                Name = "buttonLayoutTab",
+                Text = LocalizationService.GetText("Settings.LayoutTab"),
+                Location = new Point(
+                    AntdThemeService.SettingsDialogUiTabLeft,
+                    AntdThemeService.SettingsDialogUiTabTop),
+                Size = new Size(
+                    AntdThemeService.SettingsDialogUiTabWidth,
+                    AntdThemeService.SettingsDialogUiTabHeight),
+                Type = AntdUI.TTypeMini.Default
+            };
+            buttonLayoutTab.Click += buttonLayoutTab_Click;
+
+            buttonStatisticsTab = new AntdUI.Button
+            {
+                Name = "buttonStatisticsTab",
+                Text = LocalizationService.GetText("Settings.Statistics"),
+                Location = new Point(
+                    AntdThemeService.SettingsDialogStatisticsTabLeft,
+                    AntdThemeService.SettingsDialogStatisticsTabTop),
+                Size = new Size(
+                    AntdThemeService.SettingsDialogStatisticsTabWidth,
+                    AntdThemeService.SettingsDialogStatisticsTabHeight),
+                Type = AntdUI.TTypeMini.Default
+            };
+            buttonStatisticsTab.Click += buttonStatisticsTab_Click;
+
+            buttonLoggingTab = new AntdUI.Button
+            {
+                Name = "buttonLoggingTab",
+                Text = LocalizationService.GetText("Settings.Logging"),
+                Location = new Point(
+                    AntdThemeService.SettingsDialogLoggingTabLeft,
+                    AntdThemeService.SettingsDialogLoggingTabTop),
+                Size = new Size(
+                    AntdThemeService.SettingsDialogLoggingTabWidth,
+                    AntdThemeService.SettingsDialogLoggingTabHeight),
+                Type = AntdUI.TTypeMini.Default
+            };
+            buttonLoggingTab.Click += buttonLoggingTab_Click;
+
+            panelPageHost = new Panel
+            {
+                Name = "panelPageHost",
+                Location = new Point(
+                    AntdThemeService.SettingsDialogPageHostLeft,
+                    AntdThemeService.SettingsDialogPageHostTop),
+                Size = new Size(
+                    AntdThemeService.SettingsDialogPageHostWidth,
+                    AntdThemeService.SettingsDialogPageHostHeight),
+                BackColor = backgroundSecondary,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            panelGeneral = new Panel
+            {
+                Name = "panelGeneral",
+                Dock = DockStyle.Fill,
+                BackColor = backgroundSecondary,
+                AutoScroll = true,
+                AutoScrollMinSize = new Size(
+                    AntdThemeService.SettingsGeneralScrollContentWidth,
+                    AntdThemeService.SettingsGeneralScrollContentHeight)
+            };
+
+            panelExport = new Panel
+            {
+                Name = "panelExport",
+                Dock = DockStyle.Fill,
+                BackColor = backgroundSecondary,
+                Visible = false
+            };
+
+            panelColors = new Panel
+            {
+                Name = "panelColors",
+                Dock = DockStyle.Fill,
+                BackColor = backgroundSecondary,
+                Visible = false
+            };
+
+            panelLayout = new Panel
+            {
+                Name = "panelLayout",
+                Dock = DockStyle.Fill,
+                BackColor = backgroundSecondary,
+                Visible = false
+            };
+
+            panelStatistics = new Panel
+            {
+                Name = "panelStatistics",
+                Dock = DockStyle.Fill,
+                BackColor = backgroundSecondary,
+                Visible = false
+            };
+
+            panelLogging = new Panel
+            {
+                Name = "panelLogging",
+                Dock = DockStyle.Fill,
+                BackColor = backgroundSecondary,
+                Visible = false
+            };
+
+            checkBoxShowFilesInTree = AntdThemeService.CreateSettingsCheckBox(
+                "checkBoxShowFilesInTree",
+                LocalizationService.GetText("Settings.ShowFilesInTree"),
+                AntdThemeService.SettingsGeneralShowFilesCheckboxLeft,
+                AntdThemeService.SettingsGeneralShowFilesCheckboxTop,
+                AntdThemeService.SettingsGeneralShowFilesCheckboxWidth,
+                AntdThemeService.SettingsGeneralShowFilesCheckboxHeight,
+                backgroundSecondary);
+
+            checkBoxSkipReparsePoints = AntdThemeService.CreateSettingsCheckBox(
+                "checkBoxSkipReparsePoints",
+                LocalizationService.GetText("Settings.SkipReparsePoints"),
+                AntdThemeService.SettingsGeneralSkipReparsePointsCheckboxLeft,
+                AntdThemeService.SettingsGeneralSkipReparsePointsCheckboxTop,
+                AntdThemeService.SettingsGeneralSkipReparsePointsCheckboxWidth,
+                AntdThemeService.SettingsGeneralSkipReparsePointsCheckboxHeight,
+                backgroundSecondary);
+
+            checkBoxShowPartitionPanel = AntdThemeService.CreateSettingsCheckBox(
+                "checkBoxShowPartitionPanel",
+                LocalizationService.GetText("Settings.ShowPartitionPanel"),
+                AntdThemeService.SettingsGeneralShowPartitionPanelCheckboxLeft,
+                AntdThemeService.SettingsGeneralShowPartitionPanelCheckboxTop,
+                AntdThemeService.SettingsGeneralShowPartitionPanelCheckboxWidth,
+                AntdThemeService.SettingsGeneralShowPartitionPanelCheckboxHeight,
+                backgroundSecondary);
+
+            checkBoxStartElevatedOnStartup = AntdThemeService.CreateSettingsCheckBox(
+                "checkBoxStartElevatedOnStartup",
+                LocalizationService.GetText("Settings.StartElevated"),
+                AntdThemeService.SettingsGeneralStartElevatedCheckboxLeft,
+                AntdThemeService.SettingsGeneralStartElevatedCheckboxTop,
+                AntdThemeService.SettingsGeneralStartElevatedCheckboxWidth,
+                AntdThemeService.SettingsGeneralStartElevatedCheckboxHeight,
+                backgroundSecondary);
+
+            checkBoxShowElevationPromptOnStartup = AntdThemeService.CreateSettingsCheckBox(
+                "checkBoxShowElevationPromptOnStartup",
+                LocalizationService.GetText("Settings.ShowElevationPrompt"),
+                AntdThemeService.SettingsGeneralShowElevationPromptCheckboxLeft,
+                AntdThemeService.SettingsGeneralShowElevationPromptCheckboxTop,
+                AntdThemeService.SettingsGeneralShowElevationPromptCheckboxWidth,
+                AntdThemeService.SettingsGeneralShowElevationPromptCheckboxHeight,
+                backgroundSecondary);
+
+            checkBoxShellContextMenuEnabled = AntdThemeService.CreateSettingsCheckBox(
+                "checkBoxShellContextMenuEnabled",
+                LocalizationService.GetText("Settings.ShellContextMenu"),
+                AntdThemeService.SettingsGeneralShellContextMenuCheckboxLeft,
+                AntdThemeService.SettingsGeneralShellContextMenuCheckboxTop,
+                AntdThemeService.SettingsGeneralShellContextMenuCheckboxWidth,
+                AntdThemeService.SettingsGeneralShellContextMenuCheckboxHeight,
+                backgroundSecondary);
+
+            checkBoxAutoCheckForUpdates = AntdThemeService.CreateSettingsCheckBox(
+                "checkBoxAutoCheckForUpdates",
+                LocalizationService.GetText("Settings.AutoCheckForUpdates"),
+                AntdThemeService.SettingsGeneralAutoCheckForUpdatesCheckboxLeft,
+                AntdThemeService.SettingsGeneralAutoCheckForUpdatesCheckboxTop,
+                AntdThemeService.SettingsGeneralAutoCheckForUpdatesCheckboxWidth,
+                AntdThemeService.SettingsGeneralAutoCheckForUpdatesCheckboxHeight,
+                backgroundSecondary);
+
+            labelLanguage = AntdThemeService.CreateSettingsLabel(
+                "labelLanguage",
+                LocalizationService.GetText("Settings.Language"),
+                AntdThemeService.SettingsGeneralLanguageLabelLeft,
+                AntdThemeService.SettingsGeneralLanguageLabelTop,
+                AntdThemeService.SettingsGeneralLanguageLabelWidth,
+                AntdThemeService.SettingsGeneralLanguageLabelHeight);
+
+            comboBoxLanguage = AntdThemeService.CreateSettingsSelect(
+                "comboBoxLanguage",
+                new Point(
+                    AntdThemeService.SettingsGeneralLanguageSelectLeft,
+                    AntdThemeService.SettingsGeneralLanguageSelectTop),
+                new Size(
+                    AntdThemeService.SettingsGeneralLanguageSelectWidth,
+                    AntdThemeService.SettingsGeneralLanguageSelectHeight));
+            comboBoxLanguage.SelectedIndexChanged += comboBoxLanguage_SelectedIndexChanged;
+
+            buttonAddLanguage = AntdThemeService.CreateSettingsRoundButton(
+                "buttonAddLanguage",
+                "+",
+                AntdThemeService.SettingsGeneralAddLanguageButtonLeft,
+                AntdThemeService.SettingsGeneralAddLanguageButtonTop,
+                AntdThemeService.SettingsGeneralAddLanguageButtonWidth,
+                AntdThemeService.SettingsGeneralAddLanguageButtonHeight);
+            buttonAddLanguage.Click += buttonAddLanguage_Click;
+
+            buttonDeleteLanguage = AntdThemeService.CreateSettingsRoundButton(
+                "buttonDeleteLanguage",
+                "−",
+                AntdThemeService.SettingsGeneralDeleteLanguageButtonLeft,
+                AntdThemeService.SettingsGeneralDeleteLanguageButtonTop,
+                AntdThemeService.SettingsGeneralDeleteLanguageButtonWidth,
+                AntdThemeService.SettingsGeneralDeleteLanguageButtonHeight);
+            buttonDeleteLanguage.Click += buttonDeleteLanguage_Click;
+
+            toolTip = new ToolTip();
+            toolTip.SetToolTip(
+                buttonAddLanguage,
+                LocalizationService.GetText("Settings.AddLanguage"));
+            toolTip.SetToolTip(
+                buttonDeleteLanguage,
+                LocalizationService.GetText("Settings.DeleteLanguage"));
+
+            ReloadLanguageItems(_settings.LanguageCode);
+
+            labelLayout = AntdThemeService.CreateSettingsLabel(
+                "labelLayout",
+                LocalizationService.GetText("Settings.Layout"),
+                AntdThemeService.SettingsGeneralLayoutLabelLeft,
+                AntdThemeService.SettingsGeneralLayoutLabelTop,
+                AntdThemeService.SettingsGeneralLayoutLabelWidth,
+                AntdThemeService.SettingsGeneralLayoutLabelHeight);
+
+            comboBoxLayout = AntdThemeService.CreateSettingsSelect(
+                "comboBoxLayout",
+                new Point(
+                    AntdThemeService.SettingsGeneralLayoutSelectLeft,
+                    AntdThemeService.SettingsGeneralLayoutSelectTop),
+                new Size(
+                    AntdThemeService.SettingsGeneralLayoutSelectWidth,
+                    AntdThemeService.SettingsGeneralLayoutSelectHeight));
+
+            comboBoxLayout.Items.Add(new LayoutItem(
+                LocalizationService.GetText("Settings.LayoutWindowsDefault"),
+                AppLayout.WindowsDefault));
+            comboBoxLayout.Items.Add(new LayoutItem(
+                LocalizationService.GetText("Settings.LayoutWindowsLight"),
+                AppLayout.WindowsLightMode));
+            comboBoxLayout.Items.Add(new LayoutItem(
+                LocalizationService.GetText("Settings.LayoutWindowsDark"),
+                AppLayout.WindowsDarkMode));
+            comboBoxLayout.SelectedIndexChanged += comboBoxLayout_SelectedIndexChanged;
+
+            checkBoxExportPath = AntdThemeService.CreateSettingsCheckBox(
+                "checkBoxExportPath",
+                LocalizationService.GetText("Settings.ExportPath"),
+                AntdThemeService.SettingsExportPathCheckboxLeft,
+                AntdThemeService.SettingsExportPathCheckboxTop,
+                AntdThemeService.SettingsExportPathCheckboxWidth,
+                AntdThemeService.SettingsExportPathCheckboxHeight,
+                backgroundSecondary);
+
+            checkBoxExportSizeGb = AntdThemeService.CreateSettingsCheckBox(
+                "checkBoxExportSizeGb",
+                LocalizationService.GetText("Settings.ExportSizeGb"),
+                AntdThemeService.SettingsExportSizeGbCheckboxLeft,
+                AntdThemeService.SettingsExportSizeGbCheckboxTop,
+                AntdThemeService.SettingsExportSizeGbCheckboxWidth,
+                AntdThemeService.SettingsExportSizeGbCheckboxHeight,
+                backgroundSecondary);
+
+            checkBoxExportSizeMb = AntdThemeService.CreateSettingsCheckBox(
+                "checkBoxExportSizeMb",
+                LocalizationService.GetText("Settings.ExportSizeMb"),
+                AntdThemeService.SettingsExportSizeMbCheckboxLeft,
+                AntdThemeService.SettingsExportSizeMbCheckboxTop,
+                AntdThemeService.SettingsExportSizeMbCheckboxWidth,
+                AntdThemeService.SettingsExportSizeMbCheckboxHeight,
+                backgroundSecondary);
+
+            labelExportMaxDepth =
+                AntdThemeService.CreateSettingsExportMaxDepthLabel(
+                    "labelExportMaxDepth",
+                    LocalizationService.GetText(
+                        "Settings.ExportMaxDepth"));
+
+            textBoxExportMaxDepth =
+                AntdThemeService.CreateSettingsExportMaxDepthInput(
+                    "textBoxExportMaxDepth");
+
+            labelPartitionFillLight =
+                AntdThemeService.CreateSettingsLayoutColorLabel(
+                    "labelPartitionFillLight",
+                    LocalizationService.GetText(
+                        "Settings.PartitionFillLight"),
+                    AntdThemeService.SettingsUiFillIndicatorLabelLeft,
+                    AntdThemeService.SettingsUiFillIndicatorLabelTop,
+                    AntdThemeService.SettingsUiFillIndicatorLabelWidth,
+                    AntdThemeService.SettingsUiFillIndicatorLabelHeight);
+
+            buttonPartitionFillLightColor =
+                AntdThemeService.CreateSettingsLayoutColorButton(
+                    "buttonPartitionFillLightColor",
+                    LocalizationService.GetText(
+                        "Settings.SelectColor"),
+                    AntdThemeService.SettingsUiSelectColorButtonLeft,
+                    AntdThemeService.SettingsUiSelectColorButtonTop,
+                    AntdThemeService.SettingsUiSelectColorButtonWidth,
+                    AntdThemeService.SettingsUiSelectColorButtonHeight);
+            buttonPartitionFillLightColor.Click +=
+                buttonPartitionFillLightColor_Click;
+
+            panelPartitionFillLightPreview =
+                AntdThemeService.CreateSettingsLayoutColorPreview(
+                    "panelPartitionFillLightPreview",
+                    AntdThemeService.SettingsUiColorPreviewPanelLeft,
+                    AntdThemeService.SettingsUiColorPreviewPanelTop,
+                    AntdThemeService.SettingsUiColorPreviewPanelWidth,
+                    AntdThemeService.SettingsUiColorPreviewPanelHeight);
+
+            labelPartitionFillDark =
+                AntdThemeService.CreateSettingsLayoutColorLabel(
+                    "labelPartitionFillDark",
+                    LocalizationService.GetText(
+                        "Settings.PartitionFillDark"),
+                    AntdThemeService.SettingsUiFillIndicatorLabelLeft,
+                    AntdThemeService.SettingsUiFillIndicatorLabelTop,
+                    AntdThemeService.SettingsUiFillIndicatorLabelWidth,
+                    AntdThemeService.SettingsUiFillIndicatorLabelHeight);
+
+            buttonPartitionFillDarkColor =
+                AntdThemeService.CreateSettingsLayoutColorButton(
+                    "buttonPartitionFillDarkColor",
+                    LocalizationService.GetText(
+                        "Settings.SelectColor"),
+                    AntdThemeService.SettingsUiSelectColorButtonLeft,
+                    AntdThemeService.SettingsUiSelectColorButtonTop,
+                    AntdThemeService.SettingsUiSelectColorButtonWidth,
+                    AntdThemeService.SettingsUiSelectColorButtonHeight);
+            buttonPartitionFillDarkColor.Click +=
+                buttonPartitionFillDarkColor_Click;
+
+            panelPartitionFillDarkPreview =
+                AntdThemeService.CreateSettingsLayoutColorPreview(
+                    "panelPartitionFillDarkPreview",
+                    AntdThemeService.SettingsUiColorPreviewPanelLeft,
+                    AntdThemeService.SettingsUiColorPreviewPanelTop,
+                    AntdThemeService.SettingsUiColorPreviewPanelWidth,
+                    AntdThemeService.SettingsUiColorPreviewPanelHeight);
+
+            labelBarChartBarHeight =
+                AntdThemeService.CreateSettingsBarChartHeightLabel(
+                    "labelBarChartBarHeight",
+                    LocalizationService.GetText(
+                        "Settings.BarChartBarHeight"));
+
+            textBoxBarChartBarHeight =
+                AntdThemeService.CreateSettingsBarChartHeightInput(
+                    "textBoxBarChartBarHeight");
+
+            labelBarChartBarHeightDefault =
+                AntdThemeService.CreateSettingsBarChartHeightDefaultLabel(
+                    "labelBarChartBarHeightDefault",
+                    string.Format(
+                        LocalizationService.GetText(
+                            "Settings.BarChartBarHeightDefault"),
+                        14));
+
+            checkBoxSaveScanHistory = AntdThemeService.CreateSettingsCheckBox(
+                "checkBoxSaveScanHistory",
+                LocalizationService.GetText("Settings.SaveScanHistory"),
+                AntdThemeService.SettingsStatisticsSaveScanHistoryCheckboxLeft,
+                AntdThemeService.SettingsStatisticsSaveScanHistoryCheckboxTop,
+                AntdThemeService.SettingsStatisticsSaveScanHistoryCheckboxWidth,
+                AntdThemeService.SettingsStatisticsSaveScanHistoryCheckboxHeight,
+                backgroundSecondary);
+            checkBoxSaveScanHistory.CheckedChanged += checkBoxSaveScanHistory_CheckedChanged;
+
+            labelScanHistoryDatabasePath = new AntdUI.Label
+            {
+                Name = "labelScanHistoryDatabasePath",
+                Text = LocalizationService.GetText("Settings.ScanHistoryDatabasePath"),
+                Location = new Point(
+                    AntdThemeService.SettingsStatisticsDatabasePathLabelLeft,
+                    AntdThemeService.SettingsStatisticsDatabasePathLabelTop),
+                Size = new Size(
+                    AntdThemeService.SettingsStatisticsDatabasePathLabelWidth,
+                    AntdThemeService.SettingsStatisticsDatabasePathLabelHeight),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Visible = false
+            };
+
+            textBoxScanHistoryDatabasePath = new AntdUI.Input
+            {
+                Name = "textBoxScanHistoryDatabasePath",
+                Location = new Point(
+                    AntdThemeService.SettingsStatisticsDatabasePathInputLeft,
+                    AntdThemeService.SettingsStatisticsDatabasePathInputTop),
+                Size = new Size(
+                    AntdThemeService.SettingsStatisticsDatabasePathInputWidth,
+                    AntdThemeService.SettingsStatisticsDatabasePathInputHeight),
+                Text = _settings.ScanHistoryDatabasePath,
+                ReadOnly = true,
+                Visible = false
+            };
+
+            buttonBrowseScanHistoryDatabasePath = new AntdUI.Button
+            {
+                Name = "buttonBrowseScanHistoryDatabasePath",
+                Text = LocalizationService.GetText("Settings.MoveDatabase"),
+                Location = new Point(
+                    AntdThemeService.SettingsStatisticsBrowseDatabaseButtonLeft,
+                    AntdThemeService.SettingsStatisticsBrowseDatabaseButtonTop),
+                Size = new Size(
+                    AntdThemeService.SettingsStatisticsBrowseDatabaseButtonWidth,
+                    AntdThemeService.SettingsStatisticsBrowseDatabaseButtonHeight),
+                Type = AntdUI.TTypeMini.Default,
+                Visible = false
+            };
+            buttonBrowseScanHistoryDatabasePath.Click += buttonBrowseScanHistoryDatabasePath_Click;
+
+            labelScanHistoryDatabaseMoveHint = new AntdUI.Label
+            {
+                Name = "labelScanHistoryDatabaseMoveHint",
+                Text = LocalizationService.GetText("Settings.ScanHistoryDatabaseMoveHint"),
+                Location = new Point(
+                    AntdThemeService.SettingsStatisticsDatabaseMoveHintLabelLeft,
+                    AntdThemeService.SettingsStatisticsDatabaseMoveHintLabelTop),
+                Size = new Size(
+                    AntdThemeService.SettingsStatisticsDatabaseMoveHintLabelWidth,
+                    AntdThemeService.SettingsStatisticsDatabaseMoveHintLabelHeight),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Visible = false
+            };
+
+            labelScanHistoryDatabaseSize = new AntdUI.Label
+            {
+                Name = "labelScanHistoryDatabaseSize",
+                Location = new Point(
+                    AntdThemeService.SettingsStatisticsDatabaseSizeLabelLeft,
+                    AntdThemeService.SettingsStatisticsDatabaseSizeLabelTop),
+                Size = new Size(
+                    AntdThemeService.SettingsStatisticsDatabaseSizeLabelWidth,
+                    AntdThemeService.SettingsStatisticsDatabaseSizeLabelHeight),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Visible = false
+            };
+
+            labelScanHistoryMaximumScansPerPath = new AntdUI.Label
+            {
+                Name = "labelScanHistoryMaximumScansPerPath",
+                Text = LocalizationService.GetText("Settings.ScanHistoryMaximumScansPerPath"),
+                Location = new Point(
+                    AntdThemeService.SettingsStatisticsMaximumScansLabelLeft,
+                    AntdThemeService.SettingsStatisticsMaximumScansLabelTop),
+                Size = new Size(
+                    AntdThemeService.SettingsStatisticsMaximumScansLabelWidth,
+                    AntdThemeService.SettingsStatisticsMaximumScansLabelHeight),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Visible = false
+            };
+
+            textBoxScanHistoryMaximumScansPerPath = new AntdUI.Input
+            {
+                Name = "textBoxScanHistoryMaximumScansPerPath",
+                Location = new Point(
+                    AntdThemeService.SettingsStatisticsMaximumScansInputLeft,
+                    AntdThemeService.SettingsStatisticsMaximumScansInputTop),
+                Size = new Size(
+                    AntdThemeService.SettingsStatisticsMaximumScansInputWidth,
+                    AntdThemeService.SettingsStatisticsMaximumScansInputHeight),
+                TextAlign = HorizontalAlignment.Right,
+                MaxLength = 5,
+                Visible = false
+            };
+
+            labelLogLevel = new AntdUI.Label
+            {
+                Name = "labelLogLevel",
+                Text = LocalizationService.GetText("Settings.LogLevel"),
+                Location = new Point(
+                    AntdThemeService.SettingsLoggingLogLevelLabelLeft,
+                    AntdThemeService.SettingsLoggingLogLevelLabelTop),
+                Size = new Size(
+                    AntdThemeService.SettingsLoggingLogLevelLabelWidth,
+                    AntdThemeService.SettingsLoggingLogLevelLabelHeight),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            comboBoxLogLevel = AntdThemeService.CreateSettingsSelect(
+                "comboBoxLogLevel",
+                new Point(
+                    AntdThemeService.SettingsLoggingLogLevelSelectLeft,
+                    AntdThemeService.SettingsLoggingLogLevelSelectTop),
+                new Size(
+                    AntdThemeService.SettingsLoggingLogLevelSelectWidth,
+                    AntdThemeService.SettingsLoggingLogLevelSelectHeight));
+            comboBoxLogLevel.Items.Add(AppLogLevel.Normal);
+            comboBoxLogLevel.Items.Add(AppLogLevel.Verbose);
+
+            checkBoxAutoSaveLog = AntdThemeService.CreateSettingsCheckBox(
+                "checkBoxAutoSaveLog",
+                LocalizationService.GetText("Settings.AutoSaveLog"),
+                AntdThemeService.SettingsLoggingAutoSaveCheckboxLeft,
+                AntdThemeService.SettingsLoggingAutoSaveCheckboxTop,
+                AntdThemeService.SettingsLoggingAutoSaveCheckboxWidth,
+                AntdThemeService.SettingsLoggingAutoSaveCheckboxHeight,
+                backgroundSecondary);
+            checkBoxAutoSaveLog.CheckedChanged += checkBoxAutoSaveLog_CheckedChanged;
+
+            labelMaximumLogFileSizeMb = new AntdUI.Label
+            {
+                Name = "labelMaximumLogFileSizeMb",
+                Text = LocalizationService.GetText("Settings.MaximumLogFileSizeMb"),
+                Location = new Point(
+                    AntdThemeService.SettingsLoggingMaximumFileSizeLabelLeft,
+                    AntdThemeService.SettingsLoggingMaximumFileSizeLabelTop),
+                Size = new Size(
+                    AntdThemeService.SettingsLoggingMaximumFileSizeLabelWidth,
+                    AntdThemeService.SettingsLoggingMaximumFileSizeLabelHeight),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            textBoxMaximumLogFileSizeMb = new AntdUI.Input
+            {
+                Name = "textBoxMaximumLogFileSizeMb",
+                Location = new Point(
+                    AntdThemeService.SettingsLoggingMaximumFileSizeInputLeft,
+                    AntdThemeService.SettingsLoggingMaximumFileSizeInputTop),
+                Size = new Size(
+                    AntdThemeService.SettingsLoggingMaximumFileSizeInputWidth,
+                    AntdThemeService.SettingsLoggingMaximumFileSizeInputHeight),
+                TextAlign = HorizontalAlignment.Right,
+                MaxLength = 5
+            };
+
+            labelMaximumLogFileSizeUnit = new AntdUI.Label
+            {
+                Name = "labelMaximumLogFileSizeUnit",
+                Text = "(MB)",
+                Location = new Point(
+                    AntdThemeService.SettingsLoggingMaximumFileSizeUnitLabelLeft,
+                    AntdThemeService.SettingsLoggingMaximumFileSizeUnitLabelTop),
+                Size = new Size(
+                    AntdThemeService.SettingsLoggingMaximumFileSizeUnitLabelWidth,
+                    AntdThemeService.SettingsLoggingMaximumFileSizeUnitLabelHeight),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            panelGeneral.Controls.Add(checkBoxShowFilesInTree);
+            panelGeneral.Controls.Add(checkBoxSkipReparsePoints);
+            panelGeneral.Controls.Add(checkBoxShowPartitionPanel);
+            panelGeneral.Controls.Add(checkBoxStartElevatedOnStartup);
+            panelGeneral.Controls.Add(checkBoxShowElevationPromptOnStartup);
+            panelGeneral.Controls.Add(checkBoxShellContextMenuEnabled);
+            panelGeneral.Controls.Add(checkBoxAutoCheckForUpdates);
+            panelGeneral.Controls.Add(labelLanguage);
+            panelGeneral.Controls.Add(comboBoxLanguage);
+            panelGeneral.Controls.Add(buttonAddLanguage);
+            panelGeneral.Controls.Add(buttonDeleteLanguage);
+            panelGeneral.Controls.Add(labelLayout);
+            panelGeneral.Controls.Add(comboBoxLayout);
+
+            panelExport.Controls.Add(checkBoxExportPath);
+            panelExport.Controls.Add(checkBoxExportSizeGb);
+            panelExport.Controls.Add(checkBoxExportSizeMb);
+            panelExport.Controls.Add(labelExportMaxDepth);
+            panelExport.Controls.Add(textBoxExportMaxDepth);
+
+            panelLayout.Controls.Add(labelPartitionFillLight);
+            panelLayout.Controls.Add(buttonPartitionFillLightColor);
+            panelLayout.Controls.Add(panelPartitionFillLightPreview);
+            panelLayout.Controls.Add(labelPartitionFillDark);
+            panelLayout.Controls.Add(buttonPartitionFillDarkColor);
+            panelLayout.Controls.Add(panelPartitionFillDarkPreview);
+
+            panelLayout.Controls.Add(labelBarChartBarHeight);
+            panelLayout.Controls.Add(textBoxBarChartBarHeight);
+            panelLayout.Controls.Add(labelBarChartBarHeightDefault);
+
+            panelStatistics.Controls.Add(checkBoxSaveScanHistory);
+            panelStatistics.Controls.Add(labelScanHistoryDatabasePath);
+            panelStatistics.Controls.Add(textBoxScanHistoryDatabasePath);
+            panelStatistics.Controls.Add(buttonBrowseScanHistoryDatabasePath);
+            panelStatistics.Controls.Add(labelScanHistoryDatabaseMoveHint);
+            panelStatistics.Controls.Add(labelScanHistoryDatabaseSize);
+            panelStatistics.Controls.Add(labelScanHistoryMaximumScansPerPath);
+            panelStatistics.Controls.Add(textBoxScanHistoryMaximumScansPerPath);
+
+            panelLogging.Controls.Add(labelLogLevel);
+            panelLogging.Controls.Add(comboBoxLogLevel);
+            panelLogging.Controls.Add(checkBoxAutoSaveLog);
+            panelLogging.Controls.Add(labelMaximumLogFileSizeMb);
+            panelLogging.Controls.Add(textBoxMaximumLogFileSizeMb);
+            panelLogging.Controls.Add(labelMaximumLogFileSizeUnit);
+
+            panelPageHost.Controls.Add(panelGeneral);
+            panelPageHost.Controls.Add(panelExport);
+            panelPageHost.Controls.Add(panelLayout);
+            panelPageHost.Controls.Add(panelStatistics);
+            panelPageHost.Controls.Add(panelLogging);
+
+            buttonOk = new AntdUI.Button
+            {
+                Name = "buttonOk",
+                Text = LocalizationService.GetText("Common.OK"),
+                Location = new Point(
+                    AntdThemeService.SettingsDialogOkButtonLeft,
+                    AntdThemeService.SettingsDialogOkButtonTop),
+                Size = new Size(
+                    AntdThemeService.SettingsDialogOkButtonWidth,
+                    AntdThemeService.SettingsDialogOkButtonHeight),
+                DialogResult = DialogResult.OK,
+                Type = AntdUI.TTypeMini.Default
+            };
+
+            buttonCancel = new AntdUI.Button
+            {
+                Name = "buttonCancel",
+                Text = LocalizationService.GetText("Common.Cancel"),
+                Location = new Point(
+                    AntdThemeService.SettingsDialogCancelButtonLeft,
+                    AntdThemeService.SettingsDialogCancelButtonTop),
+                Size = new Size(
+                    AntdThemeService.SettingsDialogCancelButtonWidth,
+                    AntdThemeService.SettingsDialogCancelButtonHeight),
+                DialogResult = DialogResult.Cancel,
+                Type = AntdUI.TTypeMini.Default
+            };
+
+            buttonOk.Click += buttonOk_Click;
+
+            Controls.Add(buttonGeneralTab);
+            Controls.Add(buttonExportTab);
+            Controls.Add(buttonLayoutTab);
+            Controls.Add(buttonStatisticsTab);
+            Controls.Add(buttonLoggingTab);
+            Controls.Add(panelPageHost);
+            Controls.Add(buttonOk);
+            Controls.Add(buttonCancel);
+
+            AcceptButton = buttonOk;
+            CancelButton = buttonCancel;
+
+            AntdThemeService.ConfigureScrollBars(panelGeneral);
+        }
+
+        private void buttonGeneralTab_Click(object sender, EventArgs e)
+        {
+            ShowPage(panelGeneral);
+        }
+
+        private void buttonExportTab_Click(object sender, EventArgs e)
+        {
+            ShowPage(panelExport);
+        }
+
+        private void buttonColorsTab_Click(object sender, EventArgs e)
+        {
+            UpdatePartitionFillControlsVisibility();
+            ShowPage(panelColors);
+        }
+
+        private void buttonLayoutTab_Click(object sender, EventArgs e)
+        {
+            ShowPage(panelLayout);
+        }
+
+        private void buttonStatisticsTab_Click(object sender, EventArgs e)
+        {
+            ShowPage(panelStatistics);
+        }
+
+        private void buttonLoggingTab_Click(object sender, EventArgs e)
+        {
+            ShowPage(panelLogging);
+        }
+
+        private void checkBoxAutoSaveLog_CheckedChanged(object sender, EventArgs e)
+        {
+            UpdateLoggingControls();
+        }
+
+        private void UpdateLoggingControls()
+        {
+            bool autoSaveLog = checkBoxAutoSaveLog.Checked;
+            labelMaximumLogFileSizeMb.Enabled = autoSaveLog;
+            textBoxMaximumLogFileSizeMb.Enabled = autoSaveLog;
+            labelMaximumLogFileSizeUnit.Enabled = autoSaveLog;
+        }
+
+        private void checkBoxSaveScanHistory_CheckedChanged(object sender, EventArgs e)
+        {
+            UpdateScanHistoryDatabasePathVisibility();
+        }
+
+        private void UpdateScanHistoryDatabasePathVisibility()
+        {
+            bool showDatabasePath = checkBoxSaveScanHistory.Checked;
+            labelScanHistoryDatabasePath.Visible = showDatabasePath;
+            textBoxScanHistoryDatabasePath.Visible = showDatabasePath;
+            buttonBrowseScanHistoryDatabasePath.Visible = showDatabasePath;
+            labelScanHistoryDatabaseMoveHint.Visible = showDatabasePath;
+            labelScanHistoryDatabaseSize.Visible = showDatabasePath;
+            labelScanHistoryMaximumScansPerPath.Visible = showDatabasePath;
+            textBoxScanHistoryMaximumScansPerPath.Visible = showDatabasePath;
+
+            if (showDatabasePath && string.IsNullOrWhiteSpace(textBoxScanHistoryDatabasePath.Text))
+            {
+                textBoxScanHistoryDatabasePath.Text = ScanHistoryService.DatabasePath;
+            }
+
+            UpdateScanHistoryDatabaseSize();
+        }
+
+        private void UpdateScanHistoryDatabaseSize()
+        {
+            string selectedDatabasePath = string.IsNullOrWhiteSpace(
+                    textBoxScanHistoryDatabasePath.Text)
+                ? ScanHistoryService.DatabasePath
+                : textBoxScanHistoryDatabasePath.Text;
+            string databasePath = ScanHistoryService.NormalizeDatabasePath(
+                selectedDatabasePath);
+            string databaseSize = LocalizationService.GetText("Settings.DatabaseSizeUnavailable");
+
+            try
+            {
+                if (System.IO.File.Exists(databasePath))
+                {
+                    databaseSize = SizeFormatter.Format(
+                        new System.IO.FileInfo(databasePath).Length);
+                }
+            }
+            catch
+            {
+            }
+
+            labelScanHistoryDatabaseSize.Text = string.Format(
+                LocalizationService.GetText("Settings.DatabaseSize"),
+                databaseSize);
+        }
+
+        private void buttonBrowseScanHistoryDatabasePath_Click(object sender, EventArgs e)
+        {
+            string currentDatabasePath = ScanHistoryService.NormalizeDatabasePath(
+                ScanHistoryService.DatabasePath);
+
+            using DatabaseMoveForm databaseMoveForm = new DatabaseMoveForm(
+                _settings.Layout,
+                currentDatabasePath);
+
+            if (databaseMoveForm.ShowDialog(this) == DialogResult.OK)
+            {
+                textBoxScanHistoryDatabasePath.Text = ScanHistoryService.NormalizeDatabasePath(
+                    databaseMoveForm.SelectedDatabasePath);
+                selectedDatabasePathSelectionMode = databaseMoveForm.SelectionMode;
+                UpdateScanHistoryDatabaseSize();
+            }
+        }
+
+        private static string GetExistingDirectoryPath(string filePath)
+        {
+            try
+            {
+                string directoryPath = System.IO.Path.GetDirectoryName(filePath);
+
+                if (!string.IsNullOrWhiteSpace(directoryPath) &&
+                    System.IO.Directory.Exists(directoryPath))
+                {
+                    return directoryPath;
+                }
+            }
+            catch
+            {
+            }
+
+            return AppContext.BaseDirectory;
+        }
+
+        private void comboBoxLanguage_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            buttonDeleteLanguage.Enabled =
+                comboBoxLanguage.SelectedValue is LanguageItem selectedLanguageItem &&
+                !LocalizationService.IsBuiltInLanguage(selectedLanguageItem.LanguageCode);
+        }
+
+        private void buttonAddLanguage_Click(object sender, EventArgs e)
+        {
+            DialogResult warningResult = AppDialogs.ShowWarningYesNo(
+                this,
+                _settings,
+                LocalizationService.GetText("Settings.AddLanguageWarning"),
+                LocalizationService.GetText("Common.Warning"),
+                LocalizationService.GetText("Common.Yes"),
+                LocalizationService.GetText("Common.No"));
+
+            if (warningResult != DialogResult.Yes)
+                return;
+
+            using OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                Title = LocalizationService.GetText("Settings.AddLanguage"),
+                Filter = LocalizationService.GetText("Settings.LanguageFileFilter"),
+                CheckFileExists = true,
+                Multiselect = false
+            };
+
+            if (openFileDialog.ShowDialog(this) != DialogResult.OK)
+                return;
+
+            string fileName = Path.GetFileName(openFileDialog.FileName);
+            string languageCode = GetLanguageCodeFromFileName(fileName);
+
+            if (languageCode == null || !IsValidLanguageFile(openFileDialog.FileName))
+            {
+                MessageBox.Show(
+                    this,
+                    LocalizationService.GetText("Settings.InvalidLanguageFile"),
+                    LocalizationService.GetText("Common.Warning"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                Directory.CreateDirectory(LocalizationService.GetSettingsDirectoryPath());
+
+                string sourceFilePath = Path.GetFullPath(openFileDialog.FileName);
+                string targetFilePath = Path.GetFullPath(
+                    LocalizationService.GetLanguageFilePath(languageCode));
+
+                if (!string.Equals(
+                        sourceFilePath,
+                        targetFilePath,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    File.Copy(sourceFilePath, targetFilePath, true);
+                }
+
+                ReloadLanguageItems(languageCode);
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show(
+                    this,
+                    LocalizationService.GetText("Settings.LanguageImportFailed") +
+                    Environment.NewLine +
+                    Environment.NewLine +
+                    exception.Message,
+                    LocalizationService.GetText("Common.Error"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        private void buttonDeleteLanguage_Click(object sender, EventArgs e)
+        {
+            if (!(comboBoxLanguage.SelectedValue is LanguageItem selectedLanguageItem))
+                return;
+
+            if (LocalizationService.IsBuiltInLanguage(selectedLanguageItem.LanguageCode))
+                return;
+
+            DialogResult warningResult = MessageBox.Show(
+                this,
+                LocalizationService.Format(
+                    "Settings.DeleteLanguageConfirm",
+                    selectedLanguageItem.Text),
+                LocalizationService.GetText("Common.Warning"),
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2);
+
+            if (warningResult != DialogResult.Yes)
+                return;
+
+            try
+            {
+                string languageFilePath = LocalizationService.GetLanguageFilePath(
+                    selectedLanguageItem.LanguageCode);
+
+                if (File.Exists(languageFilePath))
+                {
+                    File.Delete(languageFilePath);
+                }
+
+                ReloadLanguageItems(LocalizationService.EnglishLanguageCode);
+            }
+            catch
+            {
+                MessageBox.Show(
+                    this,
+                    LocalizationService.GetText("Settings.LanguageDeleteFailed"),
+                    LocalizationService.GetText("Common.Error"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        private void ReloadLanguageItems(string selectedLanguageCode)
+        {
+            string normalizedSelectedLanguageCode =
+                LocalizationService.NormalizeLanguageCode(selectedLanguageCode);
+
+            comboBoxLanguage.Items.Clear();
+
+            foreach (string languageCode in LocalizationService.GetAvailableLanguageCodes())
+            {
+                comboBoxLanguage.Items.Add(new LanguageItem(
+                    LocalizationService.GetLanguageDisplayName(languageCode),
+                    languageCode));
+            }
+
+            for (int index = 0; index < comboBoxLanguage.Items.Count; index++)
+            {
+                if (comboBoxLanguage.Items[index] is LanguageItem languageItem &&
+                    string.Equals(
+                        languageItem.LanguageCode,
+                        normalizedSelectedLanguageCode,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    comboBoxLanguage.SelectedIndex = index;
+                    return;
+                }
+            }
+
+            comboBoxLanguage.SelectedIndex = comboBoxLanguage.Items.Count > 0 ? 0 : -1;
+        }
+
+        private static string GetLanguageCodeFromFileName(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName) ||
+                !fileName.StartsWith("lang_", StringComparison.OrdinalIgnoreCase) ||
+                !fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            string languageCode = fileName.Substring(5, fileName.Length - 10);
+
+            if (string.IsNullOrWhiteSpace(languageCode))
+                return null;
+
+            string normalizedLanguageCode = LocalizationService.NormalizeLanguageCode(languageCode);
+
+            return string.Equals(
+                normalizedLanguageCode,
+                languageCode,
+                StringComparison.OrdinalIgnoreCase)
+                ? normalizedLanguageCode
+                : null;
+        }
+
+        private static bool IsValidLanguageFile(string filePath)
+        {
+            try
+            {
+                string json = File.ReadAllText(filePath);
+                Dictionary<string, string> texts =
+                    JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+
+                return texts != null && texts.Count > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void comboBoxLayout_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            UpdatePartitionFillControlsVisibility();
+        }
+
+        private void buttonPartitionFillLightColor_Click(object sender, EventArgs e)
+        {
+            using ColorDialog colorDialog = new ColorDialog
+            {
+                Color = partitionFillLightColor,
+                FullOpen = true
+            };
+
+            if (colorDialog.ShowDialog(this) == DialogResult.OK)
+            {
+                partitionFillLightColor = colorDialog.Color;
+                UpdateColorPreviews();
+            }
+        }
+
+        private void buttonPartitionFillDarkColor_Click(object sender, EventArgs e)
+        {
+            using ColorDialog colorDialog = new ColorDialog
+            {
+                Color = partitionFillDarkColor,
+                FullOpen = true
+            };
+
+            if (colorDialog.ShowDialog(this) == DialogResult.OK)
+            {
+                partitionFillDarkColor = colorDialog.Color;
+                UpdateColorPreviews();
+            }
+        }
+
+        private void ShowPage(Panel page)
+        {
+            panelGeneral.Visible = page == panelGeneral;
+            panelExport.Visible = page == panelExport;
+            panelColors.Visible = page == panelColors;
+            panelLayout.Visible = page == panelLayout;
+            panelStatistics.Visible = page == panelStatistics;
+            panelLogging.Visible = page == panelLogging;
+            buttonGeneralTab.Enabled = page != panelGeneral;
+            buttonExportTab.Enabled = page != panelExport;
+            buttonColorsTab.Enabled = page != panelColors;
+            buttonLayoutTab.Enabled = page != panelLayout;
+            buttonStatisticsTab.Enabled = page != panelStatistics;
+            buttonLoggingTab.Enabled = page != panelLogging;
+            page.BringToFront();
+            page.PerformLayout();
+            page.Invalidate(true);
+            page.Update();
+        }
+
+        private void SettingsForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Control && e.Shift && e.Alt && e.KeyCode == Keys.D)
+            {
+                e.SuppressKeyPress = true;
+
+                using (DebugClassForm debugClassForm = new DebugClassForm(_settings.Layout))
+                {
+                    debugClassForm.ShowDialog(this);
+                }
+            }
+        }
+
+        private void LoadSettings()
+        {
+            checkBoxShowFilesInTree.Checked = _settings.ShowFilesInTree;
+            checkBoxSkipReparsePoints.Checked = _settings.SkipReparsePoints;
+            checkBoxShowPartitionPanel.Checked = _settings.ShowPartitionPanel;
+            checkBoxStartElevatedOnStartup.Checked = _settings.StartElevatedOnStartup;
+            checkBoxShowElevationPromptOnStartup.Checked = _settings.ShowElevationPromptOnStartup;
+            checkBoxShellContextMenuEnabled.Checked = _settings.ShellContextMenuEnabled;
+            checkBoxAutoCheckForUpdates.Checked = _settings.AutoCheckForUpdates;
+            checkBoxExportPath.Checked = _settings.ExportPath;
+            checkBoxExportSizeGb.Checked = _settings.ExportSizeGb;
+            checkBoxExportSizeMb.Checked = _settings.ExportSizeMb;
+            textBoxExportMaxDepth.Text = _settings.ExportMaxDepth.HasValue
+                ? _settings.ExportMaxDepth.Value.ToString()
+                : string.Empty;
+            textBoxBarChartBarHeight.Text = _settings.BarChartBarHeight.ToString();
+            textBoxScanHistoryDatabasePath.Text = ScanHistoryService.NormalizeDatabasePath(
+                _settings.ScanHistoryDatabasePath);
+            textBoxScanHistoryMaximumScansPerPath.Text =
+                _settings.ScanHistoryMaximumScansPerPath.ToString();
+            checkBoxSaveScanHistory.Checked = _settings.SaveScanHistory;
+            comboBoxLogLevel.SelectedValue = _settings.LogLevel;
+            if (comboBoxLogLevel.SelectedIndex < 0)
+            {
+                comboBoxLogLevel.SelectedValue = AppLogLevel.Normal;
+            }
+            checkBoxAutoSaveLog.Checked = _settings.AutoSaveLog;
+            textBoxMaximumLogFileSizeMb.Text =
+                _settings.MaximumLogFileSizeMb.ToString();
+            UpdateScanHistoryDatabasePathVisibility();
+            UpdateLoggingControls();
+
+            partitionFillLightColor = Color.FromArgb(_settings.PartitionFillColorLightArgb);
+            partitionFillDarkColor = Color.FromArgb(_settings.PartitionFillColorDarkArgb);
+            UpdateColorPreviews();
+
+            for (int index = 0; index < comboBoxLanguage.Items.Count; index++)
+            {
+                if (comboBoxLanguage.Items[index] is LanguageItem languageItem &&
+                    string.Equals(
+                        languageItem.LanguageCode,
+                        LocalizationService.NormalizeLanguageCode(_settings.LanguageCode),
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    comboBoxLanguage.SelectedIndex = index;
+                    break;
+                }
+            }
+
+            if (comboBoxLanguage.SelectedIndex < 0)
+            {
+                comboBoxLanguage.SelectedIndex = 0;
+            }
+
+            for (int index = 0; index < comboBoxLayout.Items.Count; index++)
+            {
+                if (comboBoxLayout.Items[index] is LayoutItem layoutItem &&
+                    layoutItem.Layout == _settings.Layout)
+                {
+                    comboBoxLayout.SelectedIndex = index;
+                    return;
+                }
+            }
+
+            comboBoxLayout.SelectedIndex = 0;
+        }
+
+        private void buttonOk_Click(object sender, EventArgs e)
+        {
+            if (!TrySaveSettings())
+            {
+                DialogResult = DialogResult.None;
+            }
+        }
+
+        private bool TrySaveSettings()
+        {
+            int? exportMaxDepth = null;
+
+            if (!int.TryParse(
+                    textBoxMaximumLogFileSizeMb.Text.Trim(),
+                    out int maximumLogFileSizeMb) ||
+                maximumLogFileSizeMb < 1)
+            {
+                MessageBox.Show(
+                    this,
+                    LocalizationService.GetText("Settings.MaximumLogFileSizeMbInvalid"),
+                    Text,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                ShowPage(panelLogging);
+                textBoxMaximumLogFileSizeMb.Focus();
+                textBoxMaximumLogFileSizeMb.SelectAll();
+                return false;
+            }
+
+            if (!int.TryParse(
+                    textBoxScanHistoryMaximumScansPerPath.Text.Trim(),
+                    out int scanHistoryMaximumScansPerPath) ||
+                scanHistoryMaximumScansPerPath < 1)
+            {
+                MessageBox.Show(
+                    this,
+                    LocalizationService.GetText("Settings.ScanHistoryMaximumScansPerPathInvalid"),
+                    Text,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                ShowPage(panelStatistics);
+                textBoxScanHistoryMaximumScansPerPath.Focus();
+                textBoxScanHistoryMaximumScansPerPath.SelectAll();
+                return false;
+            }
+
+            if (!int.TryParse(
+                    textBoxBarChartBarHeight.Text.Trim(),
+                    out int barChartBarHeight) ||
+                barChartBarHeight < 5 ||
+                barChartBarHeight > 30)
+            {
+                MessageBox.Show(
+                    this,
+                    LocalizationService.GetText("Settings.BarChartBarHeightInvalid"),
+                    Text,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                ShowPage(panelLayout);
+                textBoxBarChartBarHeight.Focus();
+                textBoxBarChartBarHeight.SelectAll();
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(textBoxExportMaxDepth.Text))
+            {
+                if (!int.TryParse(
+                        textBoxExportMaxDepth.Text.Trim(),
+                        out int parsedExportMaxDepth) ||
+                    parsedExportMaxDepth < 0)
+                {
+                    MessageBox.Show(
+                        this,
+                        LocalizationService.GetText("Settings.ExportMaxDepthInvalid"),
+                        Text,
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    ShowPage(panelExport);
+                    textBoxExportMaxDepth.Focus();
+                    return false;
+                }
+
+                exportMaxDepth = parsedExportMaxDepth;
+            }
+
+            _settings.ShowFilesInTree = checkBoxShowFilesInTree.Checked;
+            _settings.SkipReparsePoints = checkBoxSkipReparsePoints.Checked;
+            _settings.ShowPartitionPanel = checkBoxShowPartitionPanel.Checked;
+            _settings.StartElevatedOnStartup = checkBoxStartElevatedOnStartup.Checked;
+            _settings.ShowElevationPromptOnStartup = checkBoxShowElevationPromptOnStartup.Checked;
+            _settings.ShellContextMenuEnabled = checkBoxShellContextMenuEnabled.Checked;
+            _settings.AutoCheckForUpdates = checkBoxAutoCheckForUpdates.Checked;
+            _settings.ExportPath = checkBoxExportPath.Checked;
+            _settings.ExportSizeGb = checkBoxExportSizeGb.Checked;
+            _settings.ExportSizeMb = checkBoxExportSizeMb.Checked;
+            _settings.ExportMaxDepth = exportMaxDepth;
+            _settings.PartitionFillColorLightArgb = partitionFillLightColor.ToArgb();
+            _settings.PartitionFillBrightnessLightPercent = 100;
+            _settings.PartitionFillColorDarkArgb = partitionFillDarkColor.ToArgb();
+            _settings.PartitionFillBrightnessDarkPercent = 100;
+            string selectedScanHistoryDatabasePath = ScanHistoryService.NormalizeDatabasePath(
+                textBoxScanHistoryDatabasePath.Text);
+
+            if (!TryApplyScanHistoryDatabasePath(selectedScanHistoryDatabasePath))
+            {
+                ShowPage(panelStatistics);
+                return false;
+            }
+
+            _settings.BarChartBarHeight = barChartBarHeight;
+            _settings.SaveScanHistory = checkBoxSaveScanHistory.Checked;
+            _settings.ScanHistoryDatabasePath = selectedScanHistoryDatabasePath;
+            _settings.ScanHistoryMaximumScansPerPath = scanHistoryMaximumScansPerPath;
+            ScanHistoryService.ConfigureRetention(scanHistoryMaximumScansPerPath);
+
+            _settings.LogLevel = comboBoxLogLevel.SelectedValue is AppLogLevel selectedLogLevel
+                ? selectedLogLevel
+                : AppLogLevel.Normal;
+            _settings.AutoSaveLog = checkBoxAutoSaveLog.Checked;
+            _settings.MaximumLogFileSizeMb = maximumLogFileSizeMb;
+            AppAlertLog.Configure(
+                _settings.LogLevel,
+                _settings.AutoSaveLog,
+                _settings.MaximumLogFileSizeMb);
+
+            if (comboBoxLanguage.SelectedValue is LanguageItem selectedLanguageItem)
+            {
+                _settings.LanguageCode = LocalizationService.NormalizeLanguageCode(
+                    selectedLanguageItem.LanguageCode);
+                LocalizationService.Load(_settings.LanguageCode);
+            }
+
+            if (comboBoxLayout.SelectedValue is LayoutItem layoutItem)
+            {
+                _settings.Layout = layoutItem.Layout;
+            }
+
+            try
+            {
+                ShellContextMenuService.Apply(_settings.ShellContextMenuEnabled);
+            }
+            catch
+            {
+                MessageBox.Show(
+                    this,
+                    LocalizationService.GetText("Settings.ShellContextMenuFailed"),
+                    Text,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool TryApplyScanHistoryDatabasePath(string selectedScanHistoryDatabasePath)
+        {
+            try
+            {
+                string currentDatabasePath = ScanHistoryService.NormalizeDatabasePath(
+                    ScanHistoryService.DatabasePath);
+
+                if (string.Equals(
+                        currentDatabasePath,
+                        selectedScanHistoryDatabasePath,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    ScanHistoryService.ConfigureDatabasePath(selectedScanHistoryDatabasePath);
+                }
+                else
+                {
+                    switch (selectedDatabasePathSelectionMode)
+                    {
+                        case DatabasePathSelectionMode.MoveCurrentDatabase:
+                            if (System.IO.File.Exists(selectedScanHistoryDatabasePath))
+                            {
+                                throw new System.IO.IOException(
+                                    LocalizationService.GetText("DatabaseBrowse.TargetExists"));
+                            }
+
+                            ScanHistoryService.MoveDatabase(selectedScanHistoryDatabasePath);
+                            break;
+
+                        case DatabasePathSelectionMode.UseExistingDatabase:
+                            if (!System.IO.File.Exists(selectedScanHistoryDatabasePath))
+                            {
+                                throw new System.IO.FileNotFoundException(
+                                    LocalizationService.GetText("DatabaseBrowse.SourceMissing"),
+                                    selectedScanHistoryDatabasePath);
+                            }
+
+                            ScanHistoryService.ConfigureDatabasePath(selectedScanHistoryDatabasePath);
+                            break;
+
+                        case DatabasePathSelectionMode.CreateNewDatabase:
+                            if (System.IO.File.Exists(selectedScanHistoryDatabasePath))
+                            {
+                                throw new System.IO.IOException(
+                                    LocalizationService.GetText("DatabaseBrowse.TargetExists"));
+                            }
+
+                            ScanHistoryService.ConfigureDatabasePath(selectedScanHistoryDatabasePath);
+                            break;
+
+                        default:
+                            throw new InvalidOperationException(
+                                LocalizationService.GetText("DatabaseBrowse.SelectionRequired"));
+                    }
+                }
+
+                selectedDatabasePathSelectionMode = DatabasePathSelectionMode.None;
+                textBoxScanHistoryDatabasePath.Text = ScanHistoryService.DatabasePath;
+                UpdateScanHistoryDatabaseSize();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    this,
+                    LocalizationService.GetText("DatabaseBrowse.ApplyFailed") +
+                    Environment.NewLine +
+                    Environment.NewLine +
+                    ex.Message,
+                    Text,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                textBoxScanHistoryDatabasePath.Focus();
+                return false;
+            }
+        }
+
+        private void UpdatePartitionFillControlsVisibility()
+        {
+            bool useDarkMode;
+
+            if (comboBoxLayout.SelectedValue is LayoutItem selectedLayoutItem)
+            {
+                useDarkMode = selectedLayoutItem.Layout switch
+                {
+                    AppLayout.WindowsDarkMode => true,
+                    AppLayout.WindowsLightMode => false,
+                    _ => AntdThemeService.BackgroundPrimary.GetBrightness() < 0.5f
+                };
+            }
+            else
+            {
+                useDarkMode = AntdThemeService.BackgroundPrimary.GetBrightness() < 0.5f;
+            }
+
+            labelPartitionFillLight.Visible = !useDarkMode;
+            buttonPartitionFillLightColor.Visible = !useDarkMode;
+            panelPartitionFillLightPreview.Visible = !useDarkMode;
+
+            labelPartitionFillDark.Visible = useDarkMode;
+            buttonPartitionFillDarkColor.Visible = useDarkMode;
+            panelPartitionFillDarkPreview.Visible = useDarkMode;
+        }
+
+        private void UpdateColorPreviews()
+        {
+            panelPartitionFillLightPreview.BackColor =
+                partitionFillLightColor;
+            panelPartitionFillDarkPreview.BackColor =
+                partitionFillDarkColor;
+
+            UpdatePartitionFillControlsVisibility();
+        }
+
+        private sealed class LanguageItem
+        {
+            public LanguageItem(string text, string languageCode)
+            {
+                Text = text;
+                LanguageCode = languageCode;
+            }
+
+            public string Text { get; }
+            public string LanguageCode { get; }
+
+            public override string ToString()
+            {
+                return Text;
+            }
+        }
+
+        private sealed class LayoutItem
+        {
+            public LayoutItem(string text, AppLayout layout)
+            {
+                Text = text;
+                Layout = layout;
+            }
+
+            public string Text { get; }
+            public AppLayout Layout { get; }
+
+            public override string ToString()
+            {
+                return Text;
+            }
+        }
+    }
+}

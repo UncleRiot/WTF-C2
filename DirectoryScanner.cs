@@ -1,0 +1,416 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace c2flux
+{
+    public sealed class DirectoryScanner
+    {
+        private const int ProgressReportIntervalMilliseconds = 1000;
+        private const int LiveSnapshotDepth = 1;
+        private const int MaxLiveChildrenPerDirectory = 100;
+        private const int FIND_FIRST_EX_LARGE_FETCH = 2;
+        private static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
+
+        private readonly AppSettings _settings;
+
+        private long _scannedBytes;
+        private int _scannedDirectories;
+        private int _scannedFiles;
+        private long _lastProgressReportTickCount;
+        private FileSystemEntry _liveRootEntry;
+        private ScanCacheService _scanCacheService;
+        private int _skippedDirectories;
+        private List<string> _skippedDirectoryDetails;
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr FindFirstFileEx(
+            string lpFileName,
+            FINDEX_INFO_LEVELS fInfoLevelId,
+            out WIN32_FIND_DATA lpFindFileData,
+            FINDEX_SEARCH_OPS fSearchOp,
+            IntPtr lpSearchFilter,
+            int dwAdditionalFlags);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool FindNextFile(
+            IntPtr hFindFile,
+            out WIN32_FIND_DATA lpFindFileData);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool FindClose(IntPtr hFindFile);
+
+        private enum FINDEX_INFO_LEVELS
+        {
+            FindExInfoStandard = 0,
+            FindExInfoBasic = 1
+        }
+
+        private enum FINDEX_SEARCH_OPS
+        {
+            FindExSearchNameMatch = 0
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct WIN32_FIND_DATA
+        {
+            public FileAttributes dwFileAttributes;
+            public FILETIME ftCreationTime;
+            public FILETIME ftLastAccessTime;
+            public FILETIME ftLastWriteTime;
+            public uint nFileSizeHigh;
+            public uint nFileSizeLow;
+            public uint dwReserved0;
+            public uint dwReserved1;
+
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+            public string cFileName;
+
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 14)]
+            public string cAlternateFileName;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct FILETIME
+        {
+            public uint dwLowDateTime;
+            public uint dwHighDateTime;
+        }
+
+        private sealed class Win32FileSystemEntry
+        {
+            public string Name { get; set; }
+            public string FullPath { get; set; }
+            public FileAttributes Attributes { get; set; }
+            public bool IsDirectory { get; set; }
+            public long SizeBytes { get; set; }
+            public long LastWriteTimeUtcTicks { get; set; }
+        }
+
+        public DirectoryScanner(AppSettings settings)
+        {
+            _settings = settings;
+        }
+
+        public Task<FileSystemEntry> ScanAsync(string rootPath, IProgress<ScanProgress> progress, CancellationToken cancellationToken, PauseToken pauseToken)
+        {
+            return Task.Factory.StartNew(() =>
+            {
+                _scanCacheService = ScanCacheService.Load(rootPath);
+                _skippedDirectories = 0;
+                _skippedDirectoryDetails = new List<string>();
+
+                FileSystemEntry rootEntry = CreateDirectoryEntry(rootPath);
+                _liveRootEntry = rootEntry;
+                _scannedDirectories++;
+
+                ReportProgress(rootPath, progress, true);
+                ScanDirectoryContents(rootEntry, progress, cancellationToken, pauseToken, null);
+                SortChildrenRecursive(rootEntry);
+                ReportProgress(rootPath, progress, true);
+
+                progress?.Report(new ScanProgress
+                {
+                    CurrentPath = LocalizationService.GetText("Status.CacheSave"),
+                    ScannedBytes = _scannedBytes,
+                    ScannedDirectories = _scannedDirectories,
+                    ScannedFiles = _scannedFiles,
+                    SkippedDirectories = _skippedDirectories,
+                    SkippedDirectoryDetails = GetSkippedDirectoryDetailsSnapshot(),
+                    LiveRootEntry = CreateLiveSnapshot(_liveRootEntry, LiveSnapshotDepth),
+                    IsCacheVerification = true,
+                    IsCacheSavePhase = true
+                });
+
+                _scanCacheService.Save(rootEntry);
+
+                return rootEntry;
+            }, cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        }
+
+        private void ScanDirectoryContents(FileSystemEntry entry, IProgress<ScanProgress> progress, CancellationToken cancellationToken, PauseToken pauseToken, Action<long> addSizeToAncestors)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            pauseToken.WaitWhilePaused(cancellationToken);
+
+            foreach (Win32FileSystemEntry fileSystemEntry in EnumerateFileSystemEntries(entry.FullPath))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                pauseToken.WaitWhilePaused(cancellationToken);
+
+                if (ScanPathFilter.IsExcluded(fileSystemEntry.FullPath, _settings.ExcludedPaths))
+                    continue;
+
+                if (fileSystemEntry.IsDirectory)
+                {
+                    if (_settings.SkipReparsePoints && fileSystemEntry.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                        continue;
+
+                    FileSystemEntry childEntry = new FileSystemEntry
+                    {
+                        Name = fileSystemEntry.Name,
+                        FullPath = fileSystemEntry.FullPath,
+                        IsDirectory = true
+                    };
+
+                    entry.Children.Add(childEntry);
+                    _scannedDirectories++;
+
+                    ReportProgress(childEntry.FullPath, progress, false);
+
+                    ScanDirectoryContents(
+                        childEntry,
+                        progress,
+                        cancellationToken,
+                        pauseToken,
+                        sizeDelta =>
+                        {
+                            entry.SizeBytes += sizeDelta;
+                            addSizeToAncestors?.Invoke(sizeDelta);
+                        });
+
+                    ReportProgress(childEntry.FullPath, progress, false);
+                    continue;
+                }
+
+                long fileLength = _scanCacheService.GetLengthAndUpdate(
+                    fileSystemEntry.FullPath,
+                    fileSystemEntry.SizeBytes,
+                    fileSystemEntry.LastWriteTimeUtcTicks,
+                    (int)fileSystemEntry.Attributes);
+
+                _scannedFiles++;
+                _scannedBytes += fileLength;
+                entry.SizeBytes += fileLength;
+                addSizeToAncestors?.Invoke(fileLength);
+
+                FileSystemEntry fileEntry = new FileSystemEntry
+                {
+                    Name = fileSystemEntry.Name,
+                    FullPath = fileSystemEntry.FullPath,
+                    SizeBytes = fileLength,
+                    IsDirectory = false,
+                    LastWriteTimeUtc = fileSystemEntry.LastWriteTimeUtcTicks > 0
+                        ? DateTime.FromFileTimeUtc(fileSystemEntry.LastWriteTimeUtcTicks)
+                        : DateTime.MinValue
+                };
+
+                _liveRootEntry.AllFiles.Add(fileEntry);
+
+                if (_settings.ShowFilesInTree)
+                {
+                    entry.Children.Add(fileEntry);
+                }
+
+                ReportProgress(fileSystemEntry.FullPath, progress, false);
+            }
+        }
+
+        private IEnumerable<Win32FileSystemEntry> EnumerateFileSystemEntries(string directoryPath)
+        {
+            string searchPath = Path.Combine(directoryPath, "*");
+
+            IntPtr findHandle = FindFirstFileEx(
+                searchPath,
+                FINDEX_INFO_LEVELS.FindExInfoBasic,
+                out WIN32_FIND_DATA findData,
+                FINDEX_SEARCH_OPS.FindExSearchNameMatch,
+                IntPtr.Zero,
+                FIND_FIRST_EX_LARGE_FETCH);
+
+            if (findHandle == INVALID_HANDLE_VALUE)
+            {
+                AddSkippedDirectory(directoryPath, GetLastWin32ErrorMessage());
+                yield break;
+            }
+
+            try
+            {
+                do
+                {
+                    if (string.IsNullOrWhiteSpace(findData.cFileName))
+                        continue;
+
+                    if (findData.cFileName == "." || findData.cFileName == "..")
+                        continue;
+
+                    string fullPath = Path.Combine(directoryPath, findData.cFileName);
+                    bool isDirectory = findData.dwFileAttributes.HasFlag(FileAttributes.Directory);
+
+                    yield return new Win32FileSystemEntry
+                    {
+                        Name = findData.cFileName,
+                        FullPath = fullPath,
+                        Attributes = findData.dwFileAttributes,
+                        IsDirectory = isDirectory,
+                        SizeBytes = isDirectory ? 0 : CombineHighLow(findData.nFileSizeHigh, findData.nFileSizeLow),
+                        LastWriteTimeUtcTicks = FileTimeToUtcTicks(findData.ftLastWriteTime)
+                    };
+                }
+                while (FindNextFile(findHandle, out findData));
+            }
+            finally
+            {
+                FindClose(findHandle);
+            }
+        }
+
+        private static long CombineHighLow(uint high, uint low)
+        {
+            return ((long)high << 32) + low;
+        }
+
+        private static long FileTimeToUtcTicks(FILETIME fileTime)
+        {
+            long fileTimeValue = ((long)fileTime.dwHighDateTime << 32) + fileTime.dwLowDateTime;
+
+            try
+            {
+                return DateTime.FromFileTimeUtc(fileTimeValue).Ticks;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        private FileSystemEntry CreateDirectoryEntry(string path)
+        {
+            DirectoryInfo directoryInfo = new DirectoryInfo(path);
+
+            return new FileSystemEntry
+            {
+                Name = string.IsNullOrWhiteSpace(directoryInfo.Name) ? directoryInfo.FullName : directoryInfo.Name,
+                FullPath = directoryInfo.FullName,
+                IsDirectory = true
+            };
+        }
+
+        private void ReportProgress(string currentPath, IProgress<ScanProgress> progress, bool force)
+        {
+            if (!force && !ShouldReportProgress())
+                return;
+
+            progress?.Report(new ScanProgress
+            {
+                CurrentPath = currentPath,
+                ScannedBytes = _scannedBytes,
+                ScannedDirectories = _scannedDirectories,
+                ScannedFiles = _scannedFiles,
+                SkippedDirectories = _skippedDirectories,
+                SkippedDirectoryDetails = GetSkippedDirectoryDetailsSnapshot(),
+                LiveRootEntry = CreateLiveSnapshot(_liveRootEntry, LiveSnapshotDepth),
+                IsCacheVerification = true,
+                IsCacheSavePhase = false
+            });
+        }
+
+        private void AddSkippedDirectory(string directoryPath, string reason)
+        {
+            _skippedDirectories++;
+
+            if (_skippedDirectoryDetails == null)
+                return;
+
+            if (_skippedDirectoryDetails.Count >= 100)
+                return;
+
+            _skippedDirectoryDetails.Add(string.Format(
+                "{0}{1}{2}",
+                directoryPath,
+                Environment.NewLine,
+                LocalizationService.Format("Alert.Reason", string.IsNullOrWhiteSpace(reason) ? LocalizationService.GetText("Alert.UnknownReason") : reason)));
+        }
+
+        private List<string> GetSkippedDirectoryDetailsSnapshot()
+        {
+            if (_skippedDirectoryDetails == null || _skippedDirectoryDetails.Count == 0)
+                return null;
+
+            return new List<string>(_skippedDirectoryDetails);
+        }
+
+        private static string GetLastWin32ErrorMessage()
+        {
+            int errorCode = Marshal.GetLastWin32Error();
+
+            if (errorCode == 0)
+                return LocalizationService.GetText("Alert.UnknownReason");
+
+            return LocalizationService.Format("Alert.Win32Error", errorCode, new Win32Exception(errorCode).Message);
+        }
+
+        private bool ShouldReportProgress()
+        {
+            long currentTickCount = Environment.TickCount64;
+
+            if (currentTickCount - _lastProgressReportTickCount < ProgressReportIntervalMilliseconds)
+            {
+                return false;
+            }
+
+            _lastProgressReportTickCount = currentTickCount;
+            return true;
+        }
+
+        private FileSystemEntry CreateLiveSnapshot(FileSystemEntry entry, int remainingDepth)
+        {
+            if (entry == null)
+            {
+                return null;
+            }
+
+            FileSystemEntry snapshot = new FileSystemEntry
+            {
+                Name = entry.Name,
+                FullPath = entry.FullPath,
+                SizeBytes = entry.SizeBytes,
+                IsDirectory = entry.IsDirectory
+            };
+
+            if (remainingDepth <= 0)
+            {
+                return snapshot;
+            }
+
+            foreach (FileSystemEntry child in entry.Children
+                         .Where(child => child.IsDirectory || _settings.ShowFilesInTree)
+                         .OrderByDescending(child => child.SizeBytes)
+                         .ThenBy(child => child.Name)
+                         .Take(MaxLiveChildrenPerDirectory))
+            {
+                snapshot.Children.Add(CreateLiveSnapshot(child, remainingDepth - 1));
+            }
+
+            return snapshot;
+        }
+
+        private void SortChildrenRecursive(FileSystemEntry entry)
+        {
+            foreach (FileSystemEntry child in entry.Children)
+            {
+                if (child.IsDirectory)
+                {
+                    SortChildrenRecursive(child);
+                }
+            }
+
+            entry.Children.Sort((left, right) =>
+            {
+                int sizeCompare = right.SizeBytes.CompareTo(left.SizeBytes);
+
+                if (sizeCompare != 0)
+                {
+                    return sizeCompare;
+                }
+
+                return string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
+            });
+        }
+    }
+}
