@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -241,20 +241,26 @@ namespace c2flux
                 percent.HasValue);
         }
 
-        public void SetScanHistorySaveProgress(int percent)
+        public void SetScanHistorySaveProgress(
+            int percent,
+            TimeSpan? elapsed)
         {
             int value = Math.Max(0, Math.Min(100, percent));
-            _statusLabel.Text = LocalizationService.Format("Status.ScanHistorySaving", value);
+            _statusLabel.Text = LocalizationService.Format(
+                "Status.ScanHistorySaving",
+                value);
 
             SetScanProgress(
                 value,
-                null,
+                elapsed,
                 true);
 
             _owner.Text =
                 AppConstants.FullApplicationName +
                 " - " +
-                LocalizationService.Format("Status.ScanHistorySavingTitle", value);
+                LocalizationService.Format(
+                    "Status.ScanHistorySavingTitle",
+                    value);
         }
 
         public void ReportSkippedDirectories(int skippedDirectories, List<string> skippedDirectoryDetails)

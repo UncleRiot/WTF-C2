@@ -1074,7 +1074,6 @@ namespace c2flux
                     _currentRootEntry = rootEntry;
                     _layoutMainFormController.BindGrid(rootEntry);
                     ApplyEntryColumnVisibility();
-                    session.ScanStopwatch?.Stop();
 
                     _statusMainFormController.SetSelectedEntrySummary(
                         rootEntry,
@@ -1104,6 +1103,19 @@ namespace c2flux
                         uiTransitionStopwatch.Elapsed.TotalMilliseconds));
 
                 await SaveScanHistoryIfEnabledAsync(rootEntry, session);
+
+                session.ScanStopwatch?.Stop();
+
+                if (IsCurrentScanSession(session) &&
+                    IsSelectedScanPath(session.RootPath))
+                {
+                    _statusMainFormController.UpdateStatusStripForDrive(
+                        rootEntry.FullPath);
+                    _statusMainFormController.SetScanProgress(
+                        100D,
+                        session.ScanStopwatch?.Elapsed,
+                        true);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -1146,20 +1158,52 @@ namespace c2flux
             if (!_settings.SaveScanHistory || rootEntry == null)
                 return;
 
+            int saveProgressPercent = 0;
+
+            using System.Windows.Forms.Timer elapsedTimer =
+                new System.Windows.Forms.Timer
+                {
+                    Interval = 100
+                };
+
+            elapsedTimer.Tick += (_, _) =>
+            {
+                if (!IsCurrentScanSession(session) ||
+                    !IsSelectedScanPath(session.RootPath))
+                {
+                    return;
+                }
+
+                _statusMainFormController.SetScanHistorySaveProgress(
+                    saveProgressPercent,
+                    session.ScanStopwatch?.Elapsed);
+            };
+
             Progress<int> progress = new Progress<int>(percent =>
             {
-                if (!IsCurrentScanSession(session) || !IsSelectedScanPath(session.RootPath))
-                    return;
+                saveProgressPercent = Math.Max(0, Math.Min(100, percent));
 
-                _statusMainFormController.SetScanHistorySaveProgress(percent);
+                if (!IsCurrentScanSession(session) ||
+                    !IsSelectedScanPath(session.RootPath))
+                {
+                    return;
+                }
+
+                _statusMainFormController.SetScanHistorySaveProgress(
+                    saveProgressPercent,
+                    session.ScanStopwatch?.Elapsed);
             });
 
             try
             {
-                if (IsCurrentScanSession(session) && IsSelectedScanPath(session.RootPath))
+                if (IsCurrentScanSession(session) &&
+                    IsSelectedScanPath(session.RootPath))
                 {
                     SetScanHistorySavingState();
-                    _statusMainFormController.SetScanHistorySaveProgress(0);
+                    _statusMainFormController.SetScanHistorySaveProgress(
+                        0,
+                        session.ScanStopwatch?.Elapsed);
+                    elapsedTimer.Start();
                 }
 
                 await Task.Run(() => ScanHistoryService.Save(rootEntry, progress));
@@ -1168,15 +1212,13 @@ namespace c2flux
             {
                 AppAlertLog.AddWarning(
                     LocalizationService.GetText("Alert.Scan"),
-                    LocalizationService.Format("Alert.ScanHistorySaveFailed", exception.Message));
+                    LocalizationService.Format(
+                        "Alert.ScanHistorySaveFailed",
+                        exception.Message));
             }
             finally
             {
-                if (IsCurrentScanSession(session) && IsSelectedScanPath(session.RootPath))
-                {
-                    _statusMainFormController.UpdateStatusStripForDrive(rootEntry.FullPath);
-                    _statusMainFormController.SetStatusProgressText(100D);
-                }
+                elapsedTimer.Stop();
             }
         }
 
