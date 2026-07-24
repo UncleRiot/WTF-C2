@@ -1110,7 +1110,8 @@ namespace c2flux
                     IsSelectedScanPath(session.RootPath))
                 {
                     _statusMainFormController.UpdateStatusStripForDrive(
-                        rootEntry.FullPath);
+                        rootEntry.FullPath,
+                        GetSelectedEntryFileCount(rootEntry));
                     _statusMainFormController.SetScanProgress(
                         100D,
                         session.ScanStopwatch?.Elapsed,

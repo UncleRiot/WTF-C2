@@ -195,6 +195,15 @@ namespace c2flux
 
         public void UpdateStatusStripForDrive(string rootPath)
         {
+            UpdateStatusStripForDrive(
+                rootPath,
+                null);
+        }
+
+        public void UpdateStatusStripForDrive(
+            string rootPath,
+            int? fileCount)
+        {
             try
             {
                 string driveRootPath = Path.GetPathRoot(rootPath);
@@ -210,12 +219,20 @@ namespace c2flux
                 long clusterSize = GetClusterSize(driveRootPath);
                 string driveName = driveInfo.Name.TrimEnd('\\');
 
-                _statusLabel.Text = string.Format(
-                    LocalizationService.GetText("Status.FreeSpace"),
-                    driveName,
-                    SizeFormatter.Format(driveInfo.AvailableFreeSpace),
-                    SizeFormatter.Format(driveInfo.TotalSize),
-                    clusterSize);
+                _statusLabel.Text = fileCount.HasValue
+                    ? string.Format(
+                        LocalizationService.GetText("Status.FreeSpaceWithFileCount"),
+                        driveName,
+                        SizeFormatter.Format(driveInfo.AvailableFreeSpace),
+                        SizeFormatter.Format(driveInfo.TotalSize),
+                        fileCount.Value,
+                        clusterSize)
+                    : string.Format(
+                        LocalizationService.GetText("Status.FreeSpace"),
+                        driveName,
+                        SizeFormatter.Format(driveInfo.AvailableFreeSpace),
+                        SizeFormatter.Format(driveInfo.TotalSize),
+                        clusterSize);
 
                 SetStatusProgressText(null);
             }
