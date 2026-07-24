@@ -1942,6 +1942,83 @@ namespace c2flux
                 : MainViewButtonIconInactiveColor;
         }
 
+        // Symbole View-Menü und Tools-Menü
+        // Verwendet ausschließlich die bereits auf den Hauptbuttons gesetzten Symbole.
+        public static void ApplyMainMenuIconsFromButtons(
+            ToolStripMenuItem tableMenuItem,
+            ToolStripMenuItem pieChartMenuItem,
+            ToolStripMenuItem barChartMenuItem,
+            ToolStripMenuItem analysisMenuItem,
+            ToolStripMenuItem storageHistoryMenuItem,
+            ToolStripMenuItem searchMenuItem,
+            ToolStripMenuItem compareScansMenuItem,
+            AntdUI.Button tableButton,
+            AntdUI.Button pieChartButton,
+            AntdUI.Button barChartButton,
+            AntdUI.Button analysisButton,
+            AntdUI.Button storageHistoryButton,
+            AntdUI.Button searchButton,
+            AntdUI.Button compareScansButton)
+        {
+            tableMenuItem.Image = CloneMainMenuIcon(tableButton.Icon);
+            pieChartMenuItem.Image = CloneMainMenuIcon(pieChartButton.Icon);
+            barChartMenuItem.Image = CloneMainMenuIcon(barChartButton.Icon);
+            analysisMenuItem.Image = CloneMainMenuIcon(analysisButton.Icon);
+            storageHistoryMenuItem.Image = CloneMainMenuIcon(storageHistoryButton.Icon);
+            searchMenuItem.Image = CloneMainMenuIcon(searchButton.Icon);
+            compareScansMenuItem.Image = CloneMainMenuIcon(compareScansButton.Icon);
+        }
+
+        // Kopie eines vorhandenen Hauptbutton-Symbols für einen Menüeintrag
+        private static Image CloneMainMenuIcon(
+            Image buttonIcon)
+        {
+            return buttonIcon == null
+                ? null
+                : new Bitmap(buttonIcon);
+        }
+
+        // Symbol Compare Scans
+        public static void ApplyMainCompareScansButtonIcon(
+            AntdUI.Button compareScansButton)
+        {
+            Bitmap compareScansIcon = CreateMainCompareScansButtonIcon();
+            Image previousIcon = compareScansButton.Icon;
+
+            compareScansButton.Icon = compareScansIcon;
+            compareScansButton.IconHover = compareScansIcon;
+
+            if (previousIcon != null &&
+                !ReferenceEquals(previousIcon, compareScansIcon))
+            {
+                previousIcon.Dispose();
+            }
+
+            compareScansButton.Invalidate();
+        }
+
+        // Vergleichssymbol Compare Scans / Scan history
+        private static Bitmap CreateMainCompareScansButtonIcon()
+        {
+            Bitmap bitmap = CreateMainViewButtonBitmap();
+
+            using Graphics graphics = Graphics.FromImage(bitmap);
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            using Pen iconPen = new Pen(
+                MainViewButtonIconInactiveColor,
+                MainViewButtonIconLineWidth);
+
+            graphics.DrawRectangle(iconPen, 2, 3, 8, 10);
+            graphics.DrawLine(iconPen, 4, 6, 8, 6);
+            graphics.DrawLine(iconPen, 4, 9, 8, 9);
+            graphics.DrawEllipse(iconPen, 10, 2, 4, 4);
+            graphics.DrawEllipse(iconPen, 10, 10, 4, 4);
+            graphics.DrawLine(iconPen, 12, 6, 12, 10);
+
+            return bitmap;
+        }
+
         // Symbol Search
         public static void ApplyMainSearchButtonIcon(
             AntdUI.Button searchButton)

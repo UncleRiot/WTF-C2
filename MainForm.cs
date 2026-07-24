@@ -32,13 +32,20 @@ namespace c2flux
 
         private MenuStrip menuStripMain;
         private ToolStripMenuItem menuItemFile;
+        private ToolStripMenuItem menuItemNewScan;
         private ToolStripMenuItem menuItemExportCsv;
         private ToolStripMenuItem menuItemSettings;
         private ToolStripMenuItem menuItemSaveScanResult;
         private ToolStripMenuItem menuItemLoadScanResult;
+        private ToolStripMenuItem menuItemView;
+        private ToolStripMenuItem menuItemViewTable;
+        private ToolStripMenuItem menuItemViewPieChart;
+        private ToolStripMenuItem menuItemViewBarChart;
         private ToolStripMenuItem menuItemAdvancedFeatures;
         private ToolStripMenuItem menuItemStorageHistory;
-        private ToolStripMenuItem menuItemScanHistory;
+        private ToolStripMenuItem menuItemTools;
+        private ToolStripMenuItem menuItemSearch;
+        private ToolStripMenuItem menuItemCompareScans;
         private ToolStripMenuItem menuItemExit;
         private ToolStripMenuItem menuItemHelp;
         private ToolStripMenuItem menuItemOnlineHelp;
@@ -393,41 +400,75 @@ namespace c2flux
             menuStripMain.Padding = new Padding(0, 2, 0, 2);
 
             menuItemFile = new ToolStripMenuItem(LocalizationService.GetText("Menu.File"));
+            menuItemNewScan = new ToolStripMenuItem(LocalizationService.GetText("Menu.NewScan"));
             menuItemExportCsv = new ToolStripMenuItem(LocalizationService.GetText("Menu.ExportCsv"));
             menuItemSettings = new ToolStripMenuItem(LocalizationService.GetText("Menu.Settings"));
             menuItemSaveScanResult = new ToolStripMenuItem(LocalizationService.GetText("Menu.SaveScanResult"));
             menuItemLoadScanResult = new ToolStripMenuItem(LocalizationService.GetText("Menu.LoadScanResult"));
+
+            menuItemView = new ToolStripMenuItem(LocalizationService.GetText("Menu.View"));
+            menuItemViewTable = new ToolStripMenuItem(
+                AntdThemeService.GetMainViewButtonText(
+                    LocalizationService.GetText("Toolbar.Table")));
+            menuItemViewPieChart = new ToolStripMenuItem(
+                AntdThemeService.GetMainViewButtonText(
+                    LocalizationService.GetText("Toolbar.PieChart")));
+            menuItemViewBarChart = new ToolStripMenuItem(
+                AntdThemeService.GetMainViewButtonText(
+                    LocalizationService.GetText("Toolbar.BarChart")));
             menuItemAdvancedFeatures = new ToolStripMenuItem(LocalizationService.GetText("Menu.Analysis"));
-            menuItemStorageHistory = new ToolStripMenuItem(LocalizationService.GetText("Menu.StorageHistory"));
-            menuItemScanHistory = new ToolStripMenuItem(LocalizationService.GetText("Menu.ScanHistory"));
+            menuItemStorageHistory = new ToolStripMenuItem(LocalizationService.GetText("Menu.SpaceHistory"));
+
+            menuItemTools = new ToolStripMenuItem(LocalizationService.GetText("Menu.Tools"));
+            menuItemSearch = new ToolStripMenuItem(LocalizationService.GetText("Search.Title"));
+            menuItemCompareScans = new ToolStripMenuItem(LocalizationService.GetText("Menu.CompareScans"));
+
             menuItemExit = new ToolStripMenuItem(LocalizationService.GetText("Menu.Exit"));
             menuItemHelp = new ToolStripMenuItem(LocalizationService.GetText("Menu.Help"));
             menuItemOnlineHelp = new ToolStripMenuItem(LocalizationService.GetText("Menu.OnlineHelp"));
             menuItemAbout = new ToolStripMenuItem(LocalizationService.GetText("Menu.About"));
 
-            menuItemFile.DropDownItems.Add(menuItemExportCsv);
+            menuItemFile.DropDownItems.Add(menuItemNewScan);
             menuItemFile.DropDownItems.Add(menuItemSaveScanResult);
             menuItemFile.DropDownItems.Add(menuItemLoadScanResult);
-            menuItemFile.DropDownItems.Add(menuItemAdvancedFeatures);
-            menuItemFile.DropDownItems.Add(menuItemStorageHistory);
-            menuItemFile.DropDownItems.Add(menuItemScanHistory);
+            menuItemFile.DropDownItems.Add(new ToolStripSeparator());
+            menuItemFile.DropDownItems.Add(menuItemExportCsv);
             menuItemFile.DropDownItems.Add(new ToolStripSeparator());
             menuItemFile.DropDownItems.Add(menuItemSettings);
             menuItemFile.DropDownItems.Add(new ToolStripSeparator());
             menuItemFile.DropDownItems.Add(menuItemExit);
+
+            menuItemView.DropDownItems.Add(menuItemViewTable);
+            menuItemView.DropDownItems.Add(menuItemViewPieChart);
+            menuItemView.DropDownItems.Add(menuItemViewBarChart);
+            menuItemView.DropDownItems.Add(new ToolStripSeparator());
+            menuItemView.DropDownItems.Add(menuItemAdvancedFeatures);
+            menuItemView.DropDownItems.Add(menuItemStorageHistory);
+
+            menuItemTools.DropDownItems.Add(menuItemSearch);
+            menuItemTools.DropDownItems.Add(menuItemCompareScans);
+
             menuItemHelp.DropDownItems.Add(menuItemOnlineHelp);
             menuItemHelp.DropDownItems.Add(new ToolStripSeparator());
             menuItemHelp.DropDownItems.Add(menuItemAbout);
+
             menuStripMain.Items.Add(menuItemFile);
+            menuStripMain.Items.Add(menuItemView);
+            menuStripMain.Items.Add(menuItemTools);
             menuStripMain.Items.Add(menuItemHelp);
 
+            menuItemNewScan.Click += toolStripButtonScan_Click;
             menuItemExportCsv.Click += menuItemExportCsv_Click;
             menuItemSettings.Click += menuItemSettings_Click;
             menuItemSaveScanResult.Click += menuItemSaveScanResult_Click;
             menuItemLoadScanResult.Click += menuItemLoadScanResult_Click;
+            menuItemViewTable.Click += toolStripButtonTable_Click;
+            menuItemViewPieChart.Click += toolStripButtonPieChart_Click;
+            menuItemViewBarChart.Click += toolStripButtonBarChart_Click;
             menuItemAdvancedFeatures.Click += menuItemAdvancedFeatures_Click;
             menuItemStorageHistory.Click += menuItemStorageHistory_Click;
-            menuItemScanHistory.Click += menuItemScanHistory_Click;
+            menuItemSearch.Click += toolStripButtonSearch_Click;
+            menuItemCompareScans.Click += menuItemCompareScans_Click;
             menuItemExit.Click += menuItemExit_Click;
             menuItemOnlineHelp.Click += menuItemOnlineHelp_Click;
             menuItemAbout.Click += menuItemAbout_Click;
@@ -511,12 +552,28 @@ namespace c2flux
             RefreshMainViewButtonIcons();
 
             toolStripButtonScanHistory = AntdThemeService.CreateMainButton("toolStripButtonScanHistory", "Compare Scans");
-            toolStripButtonScanHistory.Icon = CreateScanHistoryButtonImage();
-            toolStripButtonScanHistory.Click += menuItemScanHistory_Click;
+            AntdThemeService.ApplyMainCompareScansButtonIcon(toolStripButtonScanHistory);
+            toolStripButtonScanHistory.Click += menuItemCompareScans_Click;
 
             toolStripButtonSearch = AntdThemeService.CreateMainButton("toolStripButtonSearch", LocalizationService.GetText("Search.Title"));
             AntdThemeService.ApplyMainSearchButtonIcon(toolStripButtonSearch);
             toolStripButtonSearch.Click += toolStripButtonSearch_Click;
+
+            AntdThemeService.ApplyMainMenuIconsFromButtons(
+                menuItemViewTable,
+                menuItemViewPieChart,
+                menuItemViewBarChart,
+                menuItemAdvancedFeatures,
+                menuItemStorageHistory,
+                menuItemSearch,
+                menuItemCompareScans,
+                toolStripButtonTable,
+                toolStripButtonPieChart,
+                toolStripButtonBarChart,
+                toolStripButtonAnalysis,
+                toolStripButtonStorageHistory,
+                toolStripButtonSearch,
+                toolStripButtonScanHistory);
 
             toolStripFeatures.Items.Add(AntdThemeService.CreateToolStripHost(toolStripButtonAnalysis));
             toolStripFeatures.Items.Add(AntdThemeService.CreateToolStripHost(toolStripButtonStorageHistory));
@@ -736,15 +793,29 @@ namespace c2flux
             Text = AppConstants.FullApplicationName;
 
             menuItemFile.Text = LocalizationService.GetText("Menu.File");
+            menuItemNewScan.Text = LocalizationService.GetText("Menu.NewScan");
             menuItemExportCsv.Text = LocalizationService.GetText("Menu.ExportCsv");
             menuItemSaveScanResult.Text = LocalizationService.GetText("Menu.SaveScanResult");
             menuItemLoadScanResult.Text = LocalizationService.GetText("Menu.LoadScanResult");
-            menuItemAdvancedFeatures.Text = LocalizationService.GetText("Menu.Analysis");
-            menuItemStorageHistory.Text = LocalizationService.GetText("Menu.StorageHistory");
-            menuItemScanHistory.Text = LocalizationService.GetText("Menu.ScanHistory");
             menuItemSettings.Text = LocalizationService.GetText("Menu.Settings");
             menuItemExit.Text = LocalizationService.GetText("Menu.Exit");
+
+            menuItemView.Text = LocalizationService.GetText("Menu.View");
+            menuItemViewTable.Text = AntdThemeService.GetMainViewButtonText(
+                LocalizationService.GetText("Toolbar.Table"));
+            menuItemViewPieChart.Text = AntdThemeService.GetMainViewButtonText(
+                LocalizationService.GetText("Toolbar.PieChart"));
+            menuItemViewBarChart.Text = AntdThemeService.GetMainViewButtonText(
+                LocalizationService.GetText("Toolbar.BarChart"));
+            menuItemAdvancedFeatures.Text = LocalizationService.GetText("Menu.Analysis");
+            menuItemStorageHistory.Text = LocalizationService.GetText("Menu.SpaceHistory");
+
+            menuItemTools.Text = LocalizationService.GetText("Menu.Tools");
+            menuItemSearch.Text = LocalizationService.GetText("Search.Title");
+            menuItemCompareScans.Text = LocalizationService.GetText("Menu.CompareScans");
+
             menuItemHelp.Text = LocalizationService.GetText("Menu.Help");
+            menuItemOnlineHelp.Text = LocalizationService.GetText("Menu.OnlineHelp");
             menuItemAbout.Text = LocalizationService.GetText("Menu.About");
 
             toolStripLabelDrive.Text = LocalizationService.GetText("Toolbar.Drive");
@@ -1695,7 +1766,7 @@ namespace c2flux
             ShowStorageHistoryView();
         }
 
-        private void menuItemScanHistory_Click(object sender, EventArgs e)
+        private void menuItemCompareScans_Click(object sender, EventArgs e)
         {
             using ScanHistoryForm scanHistoryForm = new ScanHistoryForm(_settings);
             scanHistoryForm.ShowDialog(this);
