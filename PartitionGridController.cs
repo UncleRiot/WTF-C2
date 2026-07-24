@@ -15,9 +15,6 @@ namespace c2flux
         private readonly ImageList _imageListPartitions;
         private readonly ShellIconService _shellIconService;
 
-        // Increase this value for more vertical row spacing, decrease it for a more compact partition grid.
-        private const int PartitionGridRowVerticalSpacing = 2;
-
         public PartitionGridController(
             AppSettings settings,
             SplitContainer splitContainerLeft,
@@ -496,14 +493,7 @@ namespace c2flux
 
         private void ApplyCompactPartitionGridLayout()
         {
-            int rowHeight = Math.Max(_listViewPartitions.Font.Height + PartitionGridRowVerticalSpacing, 18);
-            int headerHeight = Math.Max(_listViewPartitions.Font.Height + 6, 20);
-
-            _listViewPartitions.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
-            _listViewPartitions.RowTemplate.Height = rowHeight;
-            _listViewPartitions.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            _listViewPartitions.ColumnHeadersHeight = headerHeight;
-            _listViewPartitions.RowTemplate.MinimumHeight = rowHeight;
+            AntdThemeService.ApplyPartitionGrid(_listViewPartitions);
         }
     }
 }

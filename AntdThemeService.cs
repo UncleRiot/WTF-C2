@@ -225,6 +225,18 @@ namespace c2flux
         // Tatsächlich sichtbare Tabellenzeile für klassische DataGridView-Tabellen
         public const int DataGridViewRowHeight = 36;
 
+        // Zusätzlicher vertikaler Abstand in der Laufwerkstabelle
+        public const int PartitionGridRowVerticalSpacing = 2;
+
+        // Mindesthöhe der Zeilen in der Laufwerkstabelle
+        public const int PartitionGridMinimumRowHeight = 18;
+
+        // Zusätzlicher vertikaler Abstand im Kopf der Laufwerkstabelle
+        public const int PartitionGridHeaderVerticalSpacing = 6;
+
+        // Mindesthöhe des Tabellenkopfs der Laufwerkstabelle
+        public const int PartitionGridMinimumHeaderHeight = 20;
+
         // Innenabstand für Tabellenkopf und Tabellenzellen
         public const int TableCellHorizontalPadding = 8;
 
@@ -2253,7 +2265,7 @@ namespace c2flux
                 mainStatusLabel,
                 scanProgress,
                 alertStatusStrip);
-            ApplyTable(partitionGrid);
+            ApplyPartitionGrid(partitionGrid);
             ApplyTable(entryGrid);
         }
 
@@ -3487,6 +3499,40 @@ namespace c2flux
             table.ScrollBarAvoidHeader = true;
             table.ShowTip = true;
             table.Invalidate();
+        }
+
+        public static void ApplyPartitionGrid(
+            DataGridView grid)
+        {
+            if (grid == null)
+                return;
+
+            ApplyTable(grid);
+
+            int rowHeight = Math.Max(
+                grid.Font.Height + PartitionGridRowVerticalSpacing,
+                PartitionGridMinimumRowHeight);
+            int headerHeight = Math.Max(
+                grid.Font.Height + PartitionGridHeaderVerticalSpacing,
+                PartitionGridMinimumHeaderHeight);
+
+            grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
+            grid.RowTemplate.MinimumHeight = rowHeight;
+            grid.RowTemplate.Height = rowHeight;
+            grid.ColumnHeadersHeightSizeMode =
+                DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            grid.ColumnHeadersHeight = headerHeight;
+
+            foreach (DataGridViewRow row in grid.Rows)
+            {
+                if (!row.IsNewRow)
+                {
+                    row.MinimumHeight = rowHeight;
+                    row.Height = rowHeight;
+                }
+            }
+
+            grid.Invalidate();
         }
 
         public static void ApplyTable(DataGridView grid)
