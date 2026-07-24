@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -21,7 +21,10 @@ namespace c2flux
                 settings.AutoSaveLog,
                 settings.MaximumLogFileSizeMb);
             LocalizationService.Initialize(settings.LanguageCode);
-            ShellContextMenuService.Apply(settings.ShellContextMenuEnabled);
+            AntdThemeService.ConfigureLocalization();
+            ShellContextMenuService.Apply(
+                settings.ShellContextMenuEnabled,
+                settings.ShellSearchContextMenuEnabled);
 
             if (settings.StartElevatedOnStartup && !IsRunningAsAdministrator())
             {
@@ -47,7 +50,9 @@ namespace c2flux
                 }
             }
 
-            Application.Run(new MainForm(GetStartupScanPath(args)));
+            Application.Run(new MainForm(
+                GetStartupScanPath(args),
+                GetStartupSearchPath(args)));
         }
 
         private static string GetStartupScanPath(string[] args)
@@ -55,8 +60,35 @@ namespace c2flux
             if (args == null || args.Length == 0)
                 return null;
 
-            string path = args[0];
+            if (string.Equals(
+                    args[0],
+                    "--search",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
 
+            return NormalizeStartupPath(args[0]);
+        }
+
+        private static string GetStartupSearchPath(string[] args)
+        {
+            if (args == null || args.Length < 2)
+                return null;
+
+            if (!string.Equals(
+                    args[0],
+                    "--search",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return NormalizeStartupPath(args[1]);
+        }
+
+        private static string NormalizeStartupPath(string path)
+        {
             if (string.IsNullOrWhiteSpace(path))
                 return null;
 

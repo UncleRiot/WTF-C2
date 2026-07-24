@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -56,6 +56,7 @@ namespace c2flux
         public bool ShowElevationPromptOnStartup { get; set; } = true;
         public bool StartElevatedOnStartup { get; set; }
         public bool ShellContextMenuEnabled { get; set; }
+        public bool ShellSearchContextMenuEnabled { get; set; }
         public bool AutoCheckForUpdates { get; set; } = true;
         public List<string> ExcludedPaths { get; set; } = new List<string>();
         public bool EntryColumnNameVisible { get; set; } = true;

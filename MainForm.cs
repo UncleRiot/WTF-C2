@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -28,6 +28,7 @@ namespace c2flux
         private readonly Dictionary<string, ScanSession> _scanSessions = new Dictionary<string, ScanSession>(StringComparer.OrdinalIgnoreCase);
         private FileSystemEntry _currentRootEntry;
         private readonly string _startupScanPath;
+        private readonly string _startupSearchPath;
 
         private MenuStrip menuStripMain;
         private ToolStripMenuItem menuItemFile;
@@ -40,6 +41,7 @@ namespace c2flux
         private ToolStripMenuItem menuItemScanHistory;
         private ToolStripMenuItem menuItemExit;
         private ToolStripMenuItem menuItemHelp;
+        private ToolStripMenuItem menuItemOnlineHelp;
         private ToolStripMenuItem menuItemAbout;
         private FlowLayoutPanel toolStripPanelMain;
         private ToolStrip toolStripMain;
@@ -94,6 +96,33 @@ namespace c2flux
         private bool _suspendPersistentSettingsSave;
         private SearchForm _searchForm;
 
+        private void RefreshMainViewButtonIcons()
+        {
+            void ApplyIcons()
+            {
+                AntdThemeService.ApplyMainViewButtonIcons(
+                    toolStripButtonTable,
+                    toolStripButtonPieChart,
+                    toolStripButtonBarChart,
+                    toolStripButtonAnalysis,
+                    toolStripButtonStorageHistory);
+
+                toolStripButtonTable.Invalidate();
+                toolStripButtonPieChart.Invalidate();
+                toolStripButtonBarChart.Invalidate();
+                toolStripButtonAnalysis.Invalidate();
+                toolStripButtonStorageHistory.Invalidate();
+            }
+
+            if (IsHandleCreated)
+            {
+                BeginInvoke(new Action(ApplyIcons));
+                return;
+            }
+
+            ApplyIcons();
+        }
+
         private void ApplyDriveComboBoxTheme()
         {
             _driveComboBoxController.ApplyTheme(
@@ -110,10 +139,18 @@ namespace c2flux
             _layoutMainFormController.UpdateRightViewBounds();
         }
         public MainForm()
-    : this(null)
+    : this(null, null)
         {
         }
+
         public MainForm(string startupScanPath)
+    : this(startupScanPath, null)
+        {
+        }
+
+        public MainForm(
+            string startupScanPath,
+            string startupSearchPath)
         {
             _suspendPersistentSettingsSave = true;
 
@@ -122,6 +159,7 @@ namespace c2flux
             _csvExportService = new CsvExportService();
             _shellIconService = new ShellIconService();
             _startupScanPath = startupScanPath;
+            _startupSearchPath = startupSearchPath;
 
             AntdThemeService.Apply(_settings.Layout);
             InitializeComponent();
@@ -241,7 +279,20 @@ namespace c2flux
             _layoutMainFormController.ApplyToolStripLayout();
 
             StartStartupScanIfRequested();
+            OpenStartupSearchIfRequested();
         }
+
+        private void OpenStartupSearchIfRequested()
+        {
+            if (string.IsNullOrWhiteSpace(_startupSearchPath))
+                return;
+
+            BeginInvoke(new Action(() =>
+            {
+                OpenSearchForm(_startupSearchPath);
+            }));
+        }
+
         private void StartStartupScanIfRequested()
         {
             if (string.IsNullOrWhiteSpace(_startupScanPath))
@@ -351,6 +402,7 @@ namespace c2flux
             menuItemScanHistory = new ToolStripMenuItem(LocalizationService.GetText("Menu.ScanHistory"));
             menuItemExit = new ToolStripMenuItem(LocalizationService.GetText("Menu.Exit"));
             menuItemHelp = new ToolStripMenuItem(LocalizationService.GetText("Menu.Help"));
+            menuItemOnlineHelp = new ToolStripMenuItem(LocalizationService.GetText("Menu.OnlineHelp"));
             menuItemAbout = new ToolStripMenuItem(LocalizationService.GetText("Menu.About"));
 
             menuItemFile.DropDownItems.Add(menuItemExportCsv);
@@ -363,6 +415,8 @@ namespace c2flux
             menuItemFile.DropDownItems.Add(menuItemSettings);
             menuItemFile.DropDownItems.Add(new ToolStripSeparator());
             menuItemFile.DropDownItems.Add(menuItemExit);
+            menuItemHelp.DropDownItems.Add(menuItemOnlineHelp);
+            menuItemHelp.DropDownItems.Add(new ToolStripSeparator());
             menuItemHelp.DropDownItems.Add(menuItemAbout);
             menuStripMain.Items.Add(menuItemFile);
             menuStripMain.Items.Add(menuItemHelp);
@@ -375,6 +429,7 @@ namespace c2flux
             menuItemStorageHistory.Click += menuItemStorageHistory_Click;
             menuItemScanHistory.Click += menuItemScanHistory_Click;
             menuItemExit.Click += menuItemExit_Click;
+            menuItemOnlineHelp.Click += menuItemOnlineHelp_Click;
             menuItemAbout.Click += menuItemAbout_Click;
 
             toolStripPanelMain = AntdThemeService.CreateMainToolbarPanel();
@@ -407,9 +462,18 @@ namespace c2flux
 
             toolStripViewMode = AntdThemeService.CreateMainToolStrip();
 
-            toolStripButtonTable = AntdThemeService.CreateMainToggleButton("toolStripButtonTable", LocalizationService.GetText("Toolbar.Table"));
-            toolStripButtonPieChart = AntdThemeService.CreateMainToggleButton("toolStripButtonPieChart", LocalizationService.GetText("Toolbar.PieChart"));
-            toolStripButtonBarChart = AntdThemeService.CreateMainToggleButton("toolStripButtonBarChart", LocalizationService.GetText("Toolbar.BarChart"));
+            toolStripButtonTable = AntdThemeService.CreateMainToggleButton(
+                "toolStripButtonTable",
+                AntdThemeService.GetMainViewButtonText(
+                    LocalizationService.GetText("Toolbar.Table")));
+            toolStripButtonPieChart = AntdThemeService.CreateMainToggleButton(
+                "toolStripButtonPieChart",
+                AntdThemeService.GetMainViewButtonText(
+                    LocalizationService.GetText("Toolbar.PieChart")));
+            toolStripButtonBarChart = AntdThemeService.CreateMainToggleButton(
+                "toolStripButtonBarChart",
+                AntdThemeService.GetMainViewButtonText(
+                    LocalizationService.GetText("Toolbar.BarChart")));
             checkBoxShowFiles = AntdThemeService.CreateMainToolbarCheckBox(
                 "checkBoxShowFiles",
                 LocalizationService.GetText("Common.Files"));
@@ -439,19 +503,19 @@ namespace c2flux
             toolStripFeatures = AntdThemeService.CreateMainToolStrip();
 
             toolStripButtonAnalysis = AntdThemeService.CreateMainToggleButton("toolStripButtonAnalysis", LocalizationService.GetText("Menu.Analysis"));
-            toolStripButtonAnalysis.Icon = CreateAnalysisButtonImage();
             toolStripButtonAnalysis.Click += menuItemAdvancedFeatures_Click;
 
             toolStripButtonStorageHistory = AntdThemeService.CreateMainToggleButton("toolStripButtonStorageHistory", "Space History");
-            toolStripButtonStorageHistory.Icon = CreateStorageHistoryButtonImage();
             toolStripButtonStorageHistory.Click += menuItemStorageHistory_Click;
+
+            RefreshMainViewButtonIcons();
 
             toolStripButtonScanHistory = AntdThemeService.CreateMainButton("toolStripButtonScanHistory", "Compare Scans");
             toolStripButtonScanHistory.Icon = CreateScanHistoryButtonImage();
             toolStripButtonScanHistory.Click += menuItemScanHistory_Click;
 
             toolStripButtonSearch = AntdThemeService.CreateMainButton("toolStripButtonSearch", LocalizationService.GetText("Search.Title"));
-            toolStripButtonSearch.Icon = SystemIcons.Information.ToBitmap();
+            AntdThemeService.ApplyMainSearchButtonIcon(toolStripButtonSearch);
             toolStripButtonSearch.Click += toolStripButtonSearch_Click;
 
             toolStripFeatures.Items.Add(AntdThemeService.CreateToolStripHost(toolStripButtonAnalysis));
@@ -713,55 +777,6 @@ namespace c2flux
             _partitionGridController?.ApplyLocalizedTexts();
 
             dataGridViewEntries.ApplyLocalizedTexts();
-        }
-
-        private System.Drawing.Bitmap CreateAnalysisButtonImage()
-        {
-            System.Drawing.Bitmap bitmap = new System.Drawing.Bitmap(16, 16, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-
-            using (System.Drawing.Graphics graphics = System.Drawing.Graphics.FromImage(bitmap))
-            {
-                graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                graphics.Clear(System.Drawing.Color.Transparent);
-
-                using System.Drawing.Pen axisPen = new System.Drawing.Pen(System.Drawing.Color.FromArgb(110, 110, 110));
-                using System.Drawing.Pen graphPen = new System.Drawing.Pen(System.Drawing.Color.FromArgb(0, 120, 215), 2f);
-
-                graphics.DrawLine(axisPen, 2, 2, 2, 13);
-                graphics.DrawLine(axisPen, 2, 13, 14, 13);
-
-                System.Drawing.Point[] points =
-                {
-                    new System.Drawing.Point(3, 11),
-                    new System.Drawing.Point(6, 8),
-                    new System.Drawing.Point(9, 10),
-                    new System.Drawing.Point(13, 4)
-                };
-
-                graphics.DrawLines(graphPen, points);
-            }
-
-            return bitmap;
-        }
-
-        private System.Drawing.Bitmap CreateStorageHistoryButtonImage()
-        {
-            System.Drawing.Bitmap bitmap = new System.Drawing.Bitmap(16, 16, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-
-            using (System.Drawing.Graphics graphics = System.Drawing.Graphics.FromImage(bitmap))
-            {
-                graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                graphics.Clear(System.Drawing.Color.Transparent);
-
-                using System.Drawing.Pen clockPen = new System.Drawing.Pen(System.Drawing.Color.FromArgb(0, 120, 215), 2f);
-                using System.Drawing.Pen handPen = new System.Drawing.Pen(System.Drawing.Color.FromArgb(90, 90, 90), 2f);
-
-                graphics.DrawEllipse(clockPen, 2, 2, 12, 12);
-                graphics.DrawLine(handPen, 8, 8, 8, 4);
-                graphics.DrawLine(handPen, 8, 8, 11, 10);
-            }
-
-            return bitmap;
         }
 
         private System.Drawing.Bitmap CreateScanHistoryButtonImage()
@@ -1337,6 +1352,7 @@ namespace c2flux
             HideAnalysisView();
             HideStorageHistoryView();
             _layoutMainFormController.SetViewMode(ViewMode.Table, _suspendPersistentSettingsSave);
+            RefreshMainViewButtonIcons();
             checkBoxShowFilesHost.Visible = true;
         }
 
@@ -1345,6 +1361,7 @@ namespace c2flux
             HideAnalysisView();
             HideStorageHistoryView();
             _layoutMainFormController.SetViewMode(ViewMode.PieChart, _suspendPersistentSettingsSave);
+            RefreshMainViewButtonIcons();
             checkBoxShowFilesHost.Visible = false;
         }
 
@@ -1353,6 +1370,7 @@ namespace c2flux
             HideAnalysisView();
             HideStorageHistoryView();
             _layoutMainFormController.SetViewMode(ViewMode.BarChart, _suspendPersistentSettingsSave);
+            RefreshMainViewButtonIcons();
             checkBoxShowFilesHost.Visible = false;
         }
 
@@ -1437,6 +1455,7 @@ namespace c2flux
             }
 
             toolStripButtonAnalysis.Toggle = false;
+            RefreshMainViewButtonIcons();
         }
 
         private void ShowAnalysisView()
@@ -1474,6 +1493,7 @@ namespace c2flux
             toolStripButtonPieChart.Toggle = false;
             toolStripButtonBarChart.Toggle = false;
             toolStripButtonAnalysis.Toggle = true;
+            RefreshMainViewButtonIcons();
             checkBoxShowFilesHost.Visible = false;
         }
 
@@ -1481,6 +1501,7 @@ namespace c2flux
         {
             storageHistoryView.Visible = false;
             toolStripButtonStorageHistory.Toggle = false;
+            RefreshMainViewButtonIcons();
         }
 
         private void ShowStorageHistoryView()
@@ -1499,6 +1520,7 @@ namespace c2flux
             toolStripButtonPieChart.Toggle = false;
             toolStripButtonBarChart.Toggle = false;
             toolStripButtonStorageHistory.Toggle = true;
+            RefreshMainViewButtonIcons();
             checkBoxShowFilesHost.Visible = false;
         }
 
@@ -1926,6 +1948,11 @@ namespace c2flux
 
         private void toolStripButtonSearch_Click(object sender, EventArgs e)
         {
+            OpenSearchForm(null);
+        }
+
+        private void OpenSearchForm(string initialDrivePath)
+        {
             if (_searchForm != null && !_searchForm.IsDisposed)
             {
                 if (_searchForm.WindowState == FormWindowState.Minimized)
@@ -1940,7 +1967,8 @@ namespace c2flux
             _searchForm = new SearchForm(
                 _settings,
                 () => _currentRootEntry,
-                StartSearchDriveScanAsync);
+                StartSearchDriveScanAsync,
+                initialDrivePath);
             _searchForm.FormClosed += SearchForm_FormClosed;
             _searchForm.Show(this);
         }
@@ -1972,6 +2000,15 @@ namespace c2flux
         private void menuItemExit_Click(object sender, EventArgs e)
         {
             Close();
+        }
+
+        private void menuItemOnlineHelp_Click(object sender, EventArgs e)
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://github.com/UncleRiot/c2flux/wiki",
+                UseShellExecute = true
+            });
         }
 
         private void menuItemAbout_Click(object sender, EventArgs e)

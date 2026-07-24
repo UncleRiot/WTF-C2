@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Globalization;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
@@ -12,18 +13,16 @@ namespace c2flux
         {
             public string GetLocalizedString(string key)
             {
-                CultureInfo culture = CultureInfo.CurrentUICulture;
+                CultureInfo culture = GetApplicationCultureInfo();
                 DateTimeFormatInfo dateTimeFormat = culture.DateTimeFormat;
 
                 return key switch
                 {
-                    "ID" => culture.Name,
-                    "Cancel" => LocalizationService.GetText("Search.Cancel"),
-                    "OK" => "OK",
-                    "Now" => culture.TwoLetterISOLanguageName == "de" ? "Jetzt" : "Now",
-                    "ToDay" => culture.TwoLetterISOLanguageName == "de" ? "Heute" : "Today",
-                    "YearFormat" => "yyyy",
-                    "MonthFormat" => "MMMM",
+                    "ID" => GetAntdUiCultureId(culture),
+                    "Cancel" => LocalizationService.GetText("Calendar.Cancel"),
+                    "OK" => LocalizationService.GetText("Calendar.OK"),
+                    "Now" => LocalizationService.GetText("Calendar.Now"),
+                    "ToDay" => LocalizationService.GetText("Calendar.Today"),
                     "Mon" => dateTimeFormat.GetShortestDayName(DayOfWeek.Monday),
                     "Tue" => dateTimeFormat.GetShortestDayName(DayOfWeek.Tuesday),
                     "Wed" => dateTimeFormat.GetShortestDayName(DayOfWeek.Wednesday),
@@ -34,6 +33,142 @@ namespace c2flux
                     _ => null
                 };
             }
+        }
+
+        public static void ConfigureLocalization()
+        {
+            CultureInfo culture = GetApplicationCultureInfo();
+
+            AntdUI.Localization.Provider = new AntdUiCultureLocalization();
+            AntdUI.Localization.SetLanguage(GetAntdUiCultureId(culture));
+        }
+
+        private static CultureInfo GetApplicationCultureInfo()
+        {
+            string languageCode = LocalizationService.NormalizeLanguageCode(
+                LocalizationService.CurrentLanguageCode);
+
+            if (string.Equals(
+                    languageCode,
+                    LocalizationService.GermanLanguageCode,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return CultureInfo.GetCultureInfo("de-DE");
+            }
+
+            if (string.Equals(
+                    languageCode,
+                    LocalizationService.EnglishLanguageCode,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return CultureInfo.GetCultureInfo("en-US");
+            }
+
+            try
+            {
+                CultureInfo culture = CultureInfo.GetCultureInfo(
+                    languageCode.Replace('_', '-'));
+
+                if (culture.IsNeutralCulture)
+                {
+                    culture = CultureInfo.CreateSpecificCulture(culture.Name);
+                }
+
+                return culture;
+            }
+            catch (CultureNotFoundException)
+            {
+                return CultureInfo.GetCultureInfo("de-DE");
+            }
+        }
+
+        private static string GetAntdUiCultureId(
+            CultureInfo culture)
+        {
+            string languageCode = culture.TwoLetterISOLanguageName;
+
+            if (string.Equals(languageCode, "zh", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(languageCode, "ja", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(languageCode, "ko", StringComparison.OrdinalIgnoreCase))
+            {
+                return culture.Name;
+            }
+
+            return "en-US";
+        }
+
+        private static void ApplyDatePickerLocalization(
+            AntdUI.DatePicker datePicker)
+        {
+            AntdUI.ILayeredForm subForm = datePicker.SubForm();
+
+            if (subForm == null)
+                return;
+
+            Type subFormType = subForm.GetType();
+            CultureInfo culture = GetApplicationCultureInfo();
+            string languageCode = culture.TwoLetterISOLanguageName;
+
+            string yearFormat;
+            string monthFormat;
+
+            if (string.Equals(languageCode, "zh", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(languageCode, "ja", StringComparison.OrdinalIgnoreCase))
+            {
+                yearFormat = "yyyy年";
+                monthFormat = "M月";
+            }
+            else if (string.Equals(languageCode, "ko", StringComparison.OrdinalIgnoreCase))
+            {
+                yearFormat = "yyyy년";
+                monthFormat = "M월";
+            }
+            else
+            {
+                yearFormat = "yyyy";
+                monthFormat = "MMMM";
+            }
+
+            SetDatePickerField(subFormType, subForm, "Culture", culture);
+            SetDatePickerField(subFormType, subForm, "YearFormat", yearFormat);
+            SetDatePickerField(subFormType, subForm, "MonthFormat", monthFormat);
+
+            PropertyInfo dateProperty = subFormType.GetProperty(
+                "Date",
+                BindingFlags.Instance | BindingFlags.Public);
+
+            if (dateProperty != null &&
+                dateProperty.CanRead &&
+                dateProperty.CanWrite)
+            {
+                object currentDate = dateProperty.GetValue(subForm);
+                dateProperty.SetValue(subForm, currentDate);
+            }
+
+            MethodInfo printMethod = subFormType.GetMethod(
+                "Print",
+                BindingFlags.Instance |
+                BindingFlags.Public |
+                BindingFlags.NonPublic,
+                binder: null,
+                types: Type.EmptyTypes,
+                modifiers: null);
+
+            printMethod?.Invoke(subForm, null);
+        }
+
+        private static void SetDatePickerField(
+            Type subFormType,
+            object subForm,
+            string fieldName,
+            object value)
+        {
+            FieldInfo field = subFormType.GetField(
+                fieldName,
+                BindingFlags.Instance |
+                BindingFlags.NonPublic);
+
+            field?.SetValue(subForm, value);
         }
 
         private static bool _useDarkMode = IsWindowsAppDarkModeEnabled();
@@ -50,6 +185,25 @@ namespace c2flux
         public const int MainToolbarSecondRowTop = 44;
         public const int MainToolbarItemSpacing = -4;
         public const int MainStatusTextSpacing = 8;
+
+        // ============================================================
+        // Hauptfenster - Ansichtsbuttons
+        // ============================================================
+
+        // Icons Table / Pie chart / Bar chart / Analysis / Space History
+        public const int MainViewButtonIconWidth = 16;
+        public const int MainViewButtonIconHeight = 16;
+        public const float MainViewButtonIconLineWidth = 1.8F;
+
+        // Iconfarbe inaktiv
+        public static Color MainViewButtonIconInactiveColor =>
+            _useDarkMode
+                ? Color.FromArgb(92, 169, 255)
+                : Color.FromArgb(0, 84, 153);
+
+        // Iconfarbe aktiv
+        public static Color MainViewButtonIconActiveColor =>
+            Color.White;
 
         // ============================================================
         // Tabellen - allgemeingültig
@@ -78,6 +232,154 @@ namespace c2flux
         public const int TableProgressWidth = 100;
         public const int TableProgressHeight = 16;
         public const int TableProgressRadius = 4;
+
+        // ============================================================
+        // Scan history
+        // ============================================================
+
+        // Fenster Scan history
+        public const int ScanHistoryWindowWidth = 1120;
+        public const int ScanHistoryWindowHeight = 700;
+        public const int ScanHistoryWindowMinimumWidth = 940;
+        public const int ScanHistoryWindowMinimumHeight = 560;
+
+        // Oberer Bereich
+        public const int ScanHistoryTopPanelHeight = 102;
+        public const int ScanHistoryTopPanelPaddingLeft = 16;
+        public const int ScanHistoryTopPanelPaddingTop = 12;
+        public const int ScanHistoryTopPanelPaddingRight = 16;
+        public const int ScanHistoryTopPanelPaddingBottom = 8;
+
+        // Unterer Bereich
+        public const int ScanHistoryBottomPanelHeight = 52;
+        public const int ScanHistoryBottomPanelPaddingLeft = 16;
+        public const int ScanHistoryBottomPanelPaddingTop = 8;
+        public const int ScanHistoryBottomPanelPaddingRight = 16;
+        public const int ScanHistoryBottomPanelPaddingBottom = 10;
+
+        // Text Baseline scan
+        public const int ScanHistoryBaselineLabelLeft = 16;
+        public const int ScanHistoryBaselineLabelTop = 16;
+        public const int ScanHistoryBaselineLabelWidth = 110;
+        public const int ScanHistoryBaselineLabelHeight = 32;
+
+        // Auswahlfeld Baseline scan
+        public const int ScanHistoryBaselineSelectLeft = 132;
+        public const int ScanHistoryBaselineSelectTop = 12;
+        public const int ScanHistoryBaselineSelectWidth = 552;
+        public const int ScanHistoryBaselineSelectHeight = 32;
+
+        // Text Compare scan
+        public const int ScanHistoryCompareLabelLeft = 16;
+        public const int ScanHistoryCompareLabelTop = 52;
+        public const int ScanHistoryCompareLabelWidth = 110;
+        public const int ScanHistoryCompareLabelHeight = 32;
+
+        // Auswahlfeld Compare scan
+        public const int ScanHistoryCompareSelectLeft = 132;
+        public const int ScanHistoryCompareSelectTop = 48;
+        public const int ScanHistoryCompareSelectWidth = 552;
+        public const int ScanHistoryCompareSelectHeight = 32;
+
+        // Button Compare
+        public const int ScanHistoryCompareButtonLeft = 704;
+        public const int ScanHistoryCompareButtonTop = 12;
+        public const int ScanHistoryCompareButtonWidth = 112;
+        public const int ScanHistoryCompareButtonHeight = 32;
+
+        // Button Refresh
+        public const int ScanHistoryRefreshButtonLeft = 704;
+        public const int ScanHistoryRefreshButtonTop = 48;
+        public const int ScanHistoryRefreshButtonWidth = 112;
+        public const int ScanHistoryRefreshButtonHeight = 32;
+
+        // Text saved scans
+        public const int ScanHistoryStatusLabelLeft = 832;
+        public const int ScanHistoryStatusLabelTop = 12;
+        public const int ScanHistoryStatusLabelWidth = 240;
+        public const int ScanHistoryStatusLabelHeight = 68;
+
+        // Tabs Scans / Growth overview / Summary / Folder growth / New files / Changed files / Deleted files
+        public const int ScanHistoryTabWidth = 118;
+        public const int ScanHistoryTabGap = 4;
+
+        // Inhalt jeder Scan-history-Registerkarte
+        public const int ScanHistoryTabPagePaddingLeft = 8;
+        public const int ScanHistoryTabPagePaddingTop = 8;
+        public const int ScanHistoryTabPagePaddingRight = 8;
+        public const int ScanHistoryTabPagePaddingBottom = 8;
+
+        // Tabellenbereich
+        public const int ScanHistoryResultsHostPaddingTop = 0;
+        public const int ScanHistoryResultsHostPaddingBottom = 0;
+
+        // Button Close
+        public const int ScanHistoryCloseButtonLeft = 1014;
+        public const int ScanHistoryCloseButtonTop = 10;
+        public const int ScanHistoryCloseButtonWidth = 90;
+        public const int ScanHistoryCloseButtonHeight = 32;
+
+        // Dynamische Anordnung im oberen Bereich
+        public const int ScanHistoryTopRightAreaWidth = 416;
+        public const int ScanHistoryStatusLabelOffsetFromButtons = 128;
+        public const int ScanHistoryStatusLabelMinimumWidth = 180;
+        public const int ScanHistoryStatusLabelRightMargin = 24;
+        public const int ScanHistorySelectMinimumWidth = 320;
+        public const int ScanHistorySelectRightSpacing = 20;
+
+        // Tabelle Scans - Spalte Date
+        public const int ScanHistoryScansDateColumnWidth = 150;
+
+        // Tabelle Scans - Spalte Root path
+        public const int ScanHistoryScansRootPathColumnWidth = 360;
+
+        // Tabelle Scans - Spalte Total size
+        public const int ScanHistoryScansTotalSizeColumnWidth = 100;
+
+        // Tabelle Scans - Spalte Files
+        public const int ScanHistoryScansFilesColumnWidth = 80;
+
+        // Tabelle Scans - Spalte Folders
+        public const int ScanHistoryScansFoldersColumnWidth = 80;
+
+        // Tabelle Summary - Spalte Metric
+        public const int ScanHistorySummaryMetricColumnWidth = 260;
+
+        // Tabelle Summary - Spalte Value
+        public const int ScanHistorySummaryValueColumnWidth = 420;
+
+        // Tabelle Folder growth - Spalte Path
+        public const int ScanHistoryFolderGrowthPathColumnWidth = 420;
+
+        // Tabelle Folder growth - Spalte Baseline size
+        public const int ScanHistoryFolderGrowthBaselineSizeColumnWidth = 120;
+
+        // Tabelle Folder growth - Spalte Compare size
+        public const int ScanHistoryFolderGrowthCompareSizeColumnWidth = 120;
+
+        // Tabelle Folder growth - Spalte Delta
+        public const int ScanHistoryFolderGrowthDeltaColumnWidth = 110;
+
+        // Tabelle Folder growth - Spalte New files
+        public const int ScanHistoryFolderGrowthNewFilesColumnWidth = 90;
+
+        // Tabelle Folder growth - Spalte Changed files
+        public const int ScanHistoryFolderGrowthChangedFilesColumnWidth = 110;
+
+        // Tabellen New files / Changed files / Deleted files - Spalte Path
+        public const int ScanHistoryFileChangePathColumnWidth = 420;
+
+        // Tabellen New files / Changed files / Deleted files - Spalte Baseline size
+        public const int ScanHistoryFileChangeBaselineSizeColumnWidth = 120;
+
+        // Tabellen New files / Changed files / Deleted files - Spalte Compare size
+        public const int ScanHistoryFileChangeCompareSizeColumnWidth = 120;
+
+        // Tabellen New files / Changed files / Deleted files - Spalte Delta
+        public const int ScanHistoryFileChangeDeltaColumnWidth = 110;
+
+        // Tabellen New files / Changed files / Deleted files - Spalte Last write UTC
+        public const int ScanHistoryFileChangeLastWriteUtcColumnWidth = 150;
 
         // ============================================================
         // Analysis
@@ -113,9 +415,9 @@ namespace c2flux
         // ============================================================
 
         // Fenster
-        public const int SearchWindowWidth = 1100;
+        public const int SearchWindowWidth = 704;
         public const int SearchWindowHeight = 720;
-        public const int SearchWindowMinimumWidth = 860;
+        public const int SearchWindowMinimumWidth = 550;
         public const int SearchWindowMinimumHeight = 560;
 
         // Hauptinhalt
@@ -187,9 +489,40 @@ namespace c2flux
         public const int SearchFiltersPaddingRight = 0;
         public const int SearchFiltersPaddingBottom = 8;
 
+        // Eingabespalte Minimum size / Modified after
+        public const float SearchFiltersFirstInputColumnWidthPercent = 50F;
+
+        // Eingabespalte Maximum size / Modified before
+        public const float SearchFiltersSecondInputColumnWidthPercent = 50F;
+
         // Tabelle
         public const int SearchResultsHeaderHeight = TableHeaderHeight;
         public const int SearchResultsRowHeight = TableRowHeight;
+
+        // Spalte Drive
+        public const int SearchResultsDriveColumnWidth = 70;
+        public const int SearchResultsDriveColumnMinimumWidth = 40;
+        public const int SearchResultsDriveColumnWidthPercent = 10;
+
+        // Spalte Full path
+        public const int SearchResultsFullPathColumnWidth = 360;
+        public const int SearchResultsFullPathColumnMinimumWidth = 80;
+        public const int SearchResultsFullPathColumnWidthPercent = 43;
+
+        // Spalte Name
+        public const int SearchResultsNameColumnWidth = 220;
+        public const int SearchResultsNameColumnMinimumWidth = 80;
+        public const int SearchResultsNameColumnWidthPercent = 22;
+
+        // Spalte Size
+        public const int SearchResultsSizeColumnWidth = 110;
+        public const int SearchResultsSizeColumnMinimumWidth = 60;
+        public const int SearchResultsSizeColumnWidthPercent = 12;
+
+        // Spalte Modified
+        public const int SearchResultsModifiedColumnWidth = 150;
+        public const int SearchResultsModifiedColumnMinimumWidth = 80;
+        public const int SearchResultsModifiedColumnWidthPercent = 16;
 
         // Status und Buttons
         public const int SearchFooterButtonWidth = 92;
@@ -325,6 +658,57 @@ namespace c2flux
         public const int SettingsDialogCancelButtonWidth = 90;
         public const int SettingsDialogCancelButtonHeight = 32;
 
+
+        // ============================================================
+        // Database selection dialog
+        // ============================================================
+
+        // Fenster Select database
+        public const int DatabaseSelectionWindowWidth = 630;
+        public const int DatabaseSelectionWindowHeight = 350;
+
+        // Text Current database path
+        public const int DatabaseSelectionCurrentPathLabelLeft = 20;
+        public const int DatabaseSelectionCurrentPathLabelTop = 18;
+        public const int DatabaseSelectionCurrentPathLabelWidth = 580;
+        public const int DatabaseSelectionCurrentPathLabelHeight = 24;
+
+        // Eingabefeld Current database path
+        public const int DatabaseSelectionCurrentPathInputLeft = 20;
+        public const int DatabaseSelectionCurrentPathInputTop = 44;
+        public const int DatabaseSelectionCurrentPathInputWidth = 580;
+        public const int DatabaseSelectionCurrentPathInputHeight = 32;
+
+        // Text Database selection hint
+        public const int DatabaseSelectionHintLabelLeft = 20;
+        public const int DatabaseSelectionHintLabelTop = 84;
+        public const int DatabaseSelectionHintLabelWidth = 580;
+        public const int DatabaseSelectionHintLabelHeight = 42;
+
+        // Button Move DB to new location
+        public const int DatabaseSelectionMoveDatabaseButtonLeft = 195;
+        public const int DatabaseSelectionMoveDatabaseButtonTop = 138;
+        public const int DatabaseSelectionMoveDatabaseButtonWidth = 230;
+        public const int DatabaseSelectionMoveDatabaseButtonHeight = 32;
+
+        // Button Use existing DB
+        public const int DatabaseSelectionUseExistingDatabaseButtonLeft = 195;
+        public const int DatabaseSelectionUseExistingDatabaseButtonTop = 178;
+        public const int DatabaseSelectionUseExistingDatabaseButtonWidth = 230;
+        public const int DatabaseSelectionUseExistingDatabaseButtonHeight = 32;
+
+        // Button Create new DB
+        public const int DatabaseSelectionCreateDatabaseButtonLeft = 195;
+        public const int DatabaseSelectionCreateDatabaseButtonTop = 218;
+        public const int DatabaseSelectionCreateDatabaseButtonWidth = 230;
+        public const int DatabaseSelectionCreateDatabaseButtonHeight = 32;
+
+        // Button Cancel
+        public const int DatabaseSelectionCancelButtonLeft = 505;
+        public const int DatabaseSelectionCancelButtonTop = 258;
+        public const int DatabaseSelectionCancelButtonWidth = 95;
+        public const int DatabaseSelectionCancelButtonHeight = 32;
+
         // ============================================================
         // Settings - General
         // ============================================================
@@ -359,57 +743,63 @@ namespace c2flux
         public const int SettingsGeneralShowElevationPromptCheckboxWidth = 420;
         public const int SettingsGeneralShowElevationPromptCheckboxHeight = 24;
 
-        // Checkbox Shell context menu
+        // Checkbox Explorer context menu: Scan drive
         public const int SettingsGeneralShellContextMenuCheckboxLeft = 24;
         public const int SettingsGeneralShellContextMenuCheckboxTop = 204;
         public const int SettingsGeneralShellContextMenuCheckboxWidth = 420;
         public const int SettingsGeneralShellContextMenuCheckboxHeight = 24;
 
+        // Checkbox Explorer context menu: Search
+        public const int SettingsGeneralShellSearchContextMenuCheckboxLeft = 24;
+        public const int SettingsGeneralShellSearchContextMenuCheckboxTop = 240;
+        public const int SettingsGeneralShellSearchContextMenuCheckboxWidth = 420;
+        public const int SettingsGeneralShellSearchContextMenuCheckboxHeight = 24;
+
         // Checkbox Auto check for updates
         public const int SettingsGeneralAutoCheckForUpdatesCheckboxLeft = 24;
-        public const int SettingsGeneralAutoCheckForUpdatesCheckboxTop = 240;
+        public const int SettingsGeneralAutoCheckForUpdatesCheckboxTop = 276;
         public const int SettingsGeneralAutoCheckForUpdatesCheckboxWidth = 420;
         public const int SettingsGeneralAutoCheckForUpdatesCheckboxHeight = 24;
 
         // Text Language
         public const int SettingsGeneralLanguageLabelLeft = 34;
-        public const int SettingsGeneralLanguageLabelTop = 286;
+        public const int SettingsGeneralLanguageLabelTop = 322;
         public const int SettingsGeneralLanguageLabelWidth = 70;
         public const int SettingsGeneralLanguageLabelHeight = 32;
 
         // Auswahlfeld Language
         public const int SettingsGeneralLanguageSelectLeft = 104;
-        public const int SettingsGeneralLanguageSelectTop = 284;
+        public const int SettingsGeneralLanguageSelectTop = 320;
         public const int SettingsGeneralLanguageSelectWidth = 216;
         public const int SettingsGeneralLanguageSelectHeight = 32;
 
         // Button Add language
         public const int SettingsGeneralAddLanguageButtonLeft = 320;
-        public const int SettingsGeneralAddLanguageButtonTop = 284;
+        public const int SettingsGeneralAddLanguageButtonTop = 320;
         public const int SettingsGeneralAddLanguageButtonWidth = 32;
         public const int SettingsGeneralAddLanguageButtonHeight = 32;
 
         // Button Delete language
         public const int SettingsGeneralDeleteLanguageButtonLeft = 346;
-        public const int SettingsGeneralDeleteLanguageButtonTop = 284;
+        public const int SettingsGeneralDeleteLanguageButtonTop = 320;
         public const int SettingsGeneralDeleteLanguageButtonWidth = 32;
         public const int SettingsGeneralDeleteLanguageButtonHeight = 32;
 
         // Text Layout
         public const int SettingsGeneralLayoutLabelLeft = 34;
-        public const int SettingsGeneralLayoutLabelTop = 326;
+        public const int SettingsGeneralLayoutLabelTop = 362;
         public const int SettingsGeneralLayoutLabelWidth = 70;
         public const int SettingsGeneralLayoutLabelHeight = 32;
 
         // Auswahlfeld Layout
         public const int SettingsGeneralLayoutSelectLeft = 104;
-        public const int SettingsGeneralLayoutSelectTop = 324;
+        public const int SettingsGeneralLayoutSelectTop = 360;
         public const int SettingsGeneralLayoutSelectWidth = 216;
         public const int SettingsGeneralLayoutSelectHeight = 32;
 
         // Scrollbereich General
         public const int SettingsGeneralScrollContentWidth = 460;
-        public const int SettingsGeneralScrollContentHeight = 380;
+        public const int SettingsGeneralScrollContentHeight = 416;
 
         // ============================================================
         // Settings - Export
@@ -493,50 +883,54 @@ namespace c2flux
         // Checkbox Save scan history
         public const int SettingsStatisticsSaveScanHistoryCheckboxLeft = 24;
         public const int SettingsStatisticsSaveScanHistoryCheckboxTop = 24;
-        public const int SettingsStatisticsSaveScanHistoryCheckboxWidth = 420;
+        public const int SettingsStatisticsSaveScanHistoryCheckboxWidth = 148;
         public const int SettingsStatisticsSaveScanHistoryCheckboxHeight = 24;
 
+        // Button Save scan history help
+        public const int SettingsStatisticsSaveScanHistoryHelpButtonLeft = 177;
+        public const int SettingsStatisticsSaveScanHistoryHelpButtonTop = 25;
+        public const int SettingsStatisticsSaveScanHistoryHelpButtonWidth = 24;
+        public const int SettingsStatisticsSaveScanHistoryHelpButtonHeight = 22;
+        public const int SettingsStatisticsSaveScanHistoryHelpButtonRadius = 12;
+
+        // Tooltip Save scan history help
+        public const int SettingsStatisticsSaveScanHistoryHelpToolTipMaximumWidth = 500;
+
         // Text Database path
-        public const int SettingsStatisticsDatabasePathLabelLeft = 24;
+        public const int SettingsStatisticsDatabasePathLabelLeft = 32;
         public const int SettingsStatisticsDatabasePathLabelTop = 60;
-        public const int SettingsStatisticsDatabasePathLabelWidth = 420;
+        public const int SettingsStatisticsDatabasePathLabelWidth = 120;
         public const int SettingsStatisticsDatabasePathLabelHeight = 24;
 
         // Eingabefeld Database path
         public const int SettingsStatisticsDatabasePathInputLeft = 24;
         public const int SettingsStatisticsDatabasePathInputTop = 88;
-        public const int SettingsStatisticsDatabasePathInputWidth = 330;
-        public const int SettingsStatisticsDatabasePathInputHeight = 25;
+        public const int SettingsStatisticsDatabasePathInputWidth = 328;
+        public const int SettingsStatisticsDatabasePathInputHeight = 32;
 
         // Button Browse database
-        public const int SettingsStatisticsBrowseDatabaseButtonLeft = 364;
-        public const int SettingsStatisticsBrowseDatabaseButtonTop = 86;
+        public const int SettingsStatisticsBrowseDatabaseButtonLeft = 354;
+        public const int SettingsStatisticsBrowseDatabaseButtonTop = 88;
         public const int SettingsStatisticsBrowseDatabaseButtonWidth = 90;
-        public const int SettingsStatisticsBrowseDatabaseButtonHeight = 28;
-
-        // Text Database move hint
-        public const int SettingsStatisticsDatabaseMoveHintLabelLeft = 24;
-        public const int SettingsStatisticsDatabaseMoveHintLabelTop = 122;
-        public const int SettingsStatisticsDatabaseMoveHintLabelWidth = 430;
-        public const int SettingsStatisticsDatabaseMoveHintLabelHeight = 24;
+        public const int SettingsStatisticsBrowseDatabaseButtonHeight = 32;
 
         // Text Database size
-        public const int SettingsStatisticsDatabaseSizeLabelLeft = 24;
-        public const int SettingsStatisticsDatabaseSizeLabelTop = 150;
-        public const int SettingsStatisticsDatabaseSizeLabelWidth = 430;
+        public const int SettingsStatisticsDatabaseSizeLabelLeft = 32;
+        public const int SettingsStatisticsDatabaseSizeLabelTop = 126;
+        public const int SettingsStatisticsDatabaseSizeLabelWidth = 224;
         public const int SettingsStatisticsDatabaseSizeLabelHeight = 24;
 
         // Text Maximum scans per path
-        public const int SettingsStatisticsMaximumScansLabelLeft = 24;
-        public const int SettingsStatisticsMaximumScansLabelTop = 182;
-        public const int SettingsStatisticsMaximumScansLabelWidth = 184;
-        public const int SettingsStatisticsMaximumScansLabelHeight = 25;
+        public const int SettingsStatisticsMaximumScansLabelLeft = 32;
+        public const int SettingsStatisticsMaximumScansLabelTop = 158;
+        public const int SettingsStatisticsMaximumScansLabelWidth = 180;
+        public const int SettingsStatisticsMaximumScansLabelHeight = 32;
 
         // Eingabefeld Maximum scans per path
-        public const int SettingsStatisticsMaximumScansInputLeft = 208;
-        public const int SettingsStatisticsMaximumScansInputTop = 182;
-        public const int SettingsStatisticsMaximumScansInputWidth = 30;
-        public const int SettingsStatisticsMaximumScansInputHeight = 25;
+        public const int SettingsStatisticsMaximumScansInputLeft = 206;
+        public const int SettingsStatisticsMaximumScansInputTop = 158;
+        public const int SettingsStatisticsMaximumScansInputWidth = 52;
+        public const int SettingsStatisticsMaximumScansInputHeight = 32;
 
         // ============================================================
         // Settings - Logging
@@ -651,6 +1045,61 @@ namespace c2flux
 
         public static Color PressedBackground =>
             _useDarkMode ? Color.FromArgb(72, 72, 72) : Color.FromArgb(230, 244, 255);
+
+        // Auswahlfelder Baseline scan / Compare scan
+        public static AntdUI.Select CreateScanHistorySelect(
+            string name,
+            int left,
+            int top,
+            int width,
+            int height)
+        {
+            AntdUI.Select select = CreateSettingsSelect(
+                name,
+                new Point(left, top),
+                new Size(width, height));
+
+            select.ListAutoWidth = false;
+            select.MaxCount = 10;
+
+            return select;
+        }
+
+        // Tabs Scans / Growth overview / Summary / Folder growth / New files / Changed files / Deleted files
+        public static void ConfigureScanHistoryTabs(
+            AntdUI.Tabs tabs)
+        {
+            if (tabs == null)
+                return;
+
+            tabs.Type = AntdUI.TabType.Card;
+            tabs.Centered = false;
+            tabs.ItemSize = ScanHistoryTabWidth;
+            tabs.Gap = ScanHistoryTabGap;
+            tabs.ForeColor = TextPrimary;
+            tabs.Fill = BackgroundSecondary;
+            tabs.FillHover = HoverBackground;
+            tabs.FillActive = Accent;
+            tabs.BackColor = BackgroundPrimary;
+            tabs.Font = DefaultFont;
+            tabs.TabStop = false;
+            tabs.EnableSwitch = true;
+            tabs.EnablePageScrolling = true;
+            tabs.EnablePageCloseByMouseMiddle = false;
+            tabs.EnablePageCloseByMouseDoubleClick = false;
+            tabs.DragOrder = false;
+            tabs.TabMenuVisible = true;
+        }
+
+        // Tabellen Scans / Summary / Folder growth / New files / Changed files / Deleted files
+        public static void ConfigureScanHistoryGrid(
+            DataGridView grid)
+        {
+            if (grid == null)
+                return;
+
+            ApplyTable(grid);
+        }
 
         // Tabs File types / Largest files - vollständige zentrale Darstellung
         public static void ConfigureAnalysisTabs(
@@ -858,6 +1307,62 @@ namespace c2flux
                 AccentText;
 
             ConfigureScrollBars(grid);
+        }
+
+        public static string WrapToolTipText(
+            string text,
+            int maximumWidth)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return string.Empty;
+
+            string[] words = text.Split(
+                new[] { ' ' },
+                StringSplitOptions.RemoveEmptyEntries);
+
+            if (words.Length == 0)
+                return string.Empty;
+
+            string result = string.Empty;
+            string currentLine = string.Empty;
+
+            foreach (string word in words)
+            {
+                string candidate = string.IsNullOrEmpty(currentLine)
+                    ? word
+                    : currentLine + " " + word;
+
+                int candidateWidth = TextRenderer.MeasureText(
+                    candidate,
+                    DefaultFont).Width;
+
+                if (candidateWidth <= maximumWidth ||
+                    string.IsNullOrEmpty(currentLine))
+                {
+                    currentLine = candidate;
+                    continue;
+                }
+
+                if (result.Length > 0)
+                {
+                    result += Environment.NewLine;
+                }
+
+                result += currentLine;
+                currentLine = word;
+            }
+
+            if (currentLine.Length > 0)
+            {
+                if (result.Length > 0)
+                {
+                    result += Environment.NewLine;
+                }
+
+                result += currentLine;
+            }
+
+            return result;
         }
 
         public static AntdUI.Checkbox CreateSettingsCheckBox(
@@ -1222,6 +1727,256 @@ namespace c2flux
                 scanProgress.Fill = Accent;
                 scanProgress.Invalidate();
             }
+        }
+
+        // Entfernt alte, im lokalisierten Text eingebettete Symbolzeichen
+        // vor Table, Pie chart und Bar chart.
+        public static string GetMainViewButtonText(
+            string localizedText)
+        {
+            if (string.IsNullOrWhiteSpace(localizedText))
+                return string.Empty;
+
+            string trimmedText = localizedText.Trim();
+
+            for (int index = 0; index < trimmedText.Length; index++)
+            {
+                if (char.IsLetterOrDigit(trimmedText[index]))
+                {
+                    return trimmedText.Substring(index);
+                }
+            }
+
+            return trimmedText;
+        }
+
+        public static void ApplyMainViewButtonIcons(
+            AntdUI.Button tableButton,
+            AntdUI.Button pieChartButton,
+            AntdUI.Button barChartButton,
+            AntdUI.Button analysisButton,
+            AntdUI.Button storageHistoryButton)
+        {
+            ApplyMainViewButtonIcons(
+                tableButton,
+                CreateMainTableButtonIcon(false),
+                CreateMainTableButtonIcon(true));
+
+            ApplyMainViewButtonIcons(
+                pieChartButton,
+                CreateMainPieChartButtonIcon(false),
+                CreateMainPieChartButtonIcon(true));
+
+            ApplyMainViewButtonIcons(
+                barChartButton,
+                CreateMainBarChartButtonIcon(false),
+                CreateMainBarChartButtonIcon(true));
+
+            ApplyMainViewButtonIcons(
+                analysisButton,
+                CreateMainAnalysisButtonIcon(false),
+                CreateMainAnalysisButtonIcon(true));
+
+            ApplyMainViewButtonIcons(
+                storageHistoryButton,
+                CreateMainStorageHistoryButtonIcon(false),
+                CreateMainStorageHistoryButtonIcon(true));
+        }
+
+        private static void ApplyMainViewButtonIcons(
+            AntdUI.Button button,
+            Bitmap inactiveIcon,
+            Bitmap activeIcon)
+        {
+            Image previousInactiveIcon = button.Icon;
+            Image previousActiveIcon = button.ToggleIcon;
+
+            button.IconToggleAnimation = 0;
+            button.Icon = inactiveIcon;
+            button.IconHover = inactiveIcon;
+            button.ToggleIcon = activeIcon;
+            button.ToggleIconHover = activeIcon;
+
+            if (previousInactiveIcon != null &&
+                !ReferenceEquals(previousInactiveIcon, inactiveIcon))
+            {
+                previousInactiveIcon.Dispose();
+            }
+
+            if (previousActiveIcon != null &&
+                !ReferenceEquals(previousActiveIcon, activeIcon))
+            {
+                previousActiveIcon.Dispose();
+            }
+
+            button.Invalidate();
+        }
+
+        private static Bitmap CreateMainTableButtonIcon(
+            bool active)
+        {
+            Bitmap bitmap = CreateMainViewButtonBitmap();
+            Color iconColor = GetMainViewButtonIconColor(active);
+
+            using Graphics graphics = Graphics.FromImage(bitmap);
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            using Pen borderPen = new Pen(
+                iconColor,
+                MainViewButtonIconLineWidth);
+
+            graphics.DrawRectangle(borderPen, 2, 3, 12, 10);
+            graphics.DrawLine(borderPen, 2, 7, 14, 7);
+            graphics.DrawLine(borderPen, 6, 3, 6, 13);
+
+            return bitmap;
+        }
+
+        private static Bitmap CreateMainPieChartButtonIcon(
+            bool active)
+        {
+            Bitmap bitmap = CreateMainViewButtonBitmap();
+            Color iconColor = GetMainViewButtonIconColor(active);
+
+            using Graphics graphics = Graphics.FromImage(bitmap);
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            using Pen iconPen = new Pen(
+                iconColor,
+                MainViewButtonIconLineWidth);
+
+            graphics.DrawArc(iconPen, 2, 2, 12, 12, 0, 270);
+            graphics.DrawLine(iconPen, 8, 8, 8, 2);
+            graphics.DrawLine(iconPen, 8, 8, 14, 8);
+
+            return bitmap;
+        }
+
+        private static Bitmap CreateMainBarChartButtonIcon(
+            bool active)
+        {
+            Bitmap bitmap = CreateMainViewButtonBitmap();
+            Color iconColor = GetMainViewButtonIconColor(active);
+
+            using Graphics graphics = Graphics.FromImage(bitmap);
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            using Pen iconPen = new Pen(
+                iconColor,
+                MainViewButtonIconLineWidth);
+
+            graphics.DrawRectangle(iconPen, 2, 8, 2, 5);
+            graphics.DrawRectangle(iconPen, 7, 5, 2, 8);
+            graphics.DrawRectangle(iconPen, 12, 2, 2, 11);
+
+            return bitmap;
+        }
+
+        private static Bitmap CreateMainAnalysisButtonIcon(
+            bool active)
+        {
+            Bitmap bitmap = CreateMainViewButtonBitmap();
+            Color iconColor = GetMainViewButtonIconColor(active);
+
+            using Graphics graphics = Graphics.FromImage(bitmap);
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            using Pen iconPen = new Pen(
+                iconColor,
+                MainViewButtonIconLineWidth);
+
+            graphics.DrawLine(iconPen, 2, 2, 2, 13);
+            graphics.DrawLine(iconPen, 2, 13, 14, 13);
+
+            Point[] points =
+            {
+                new Point(3, 11),
+                new Point(6, 8),
+                new Point(9, 10),
+                new Point(13, 4)
+            };
+
+            graphics.DrawLines(iconPen, points);
+
+            return bitmap;
+        }
+
+        private static Bitmap CreateMainStorageHistoryButtonIcon(
+            bool active)
+        {
+            Bitmap bitmap = CreateMainViewButtonBitmap();
+            Color iconColor = GetMainViewButtonIconColor(active);
+
+            using Graphics graphics = Graphics.FromImage(bitmap);
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            using Pen iconPen = new Pen(
+                iconColor,
+                MainViewButtonIconLineWidth);
+
+            graphics.DrawEllipse(iconPen, 2, 2, 12, 12);
+            graphics.DrawLine(iconPen, 8, 8, 8, 4);
+            graphics.DrawLine(iconPen, 8, 8, 11, 10);
+
+            return bitmap;
+        }
+
+        private static Bitmap CreateMainViewButtonBitmap()
+        {
+            Bitmap bitmap = new Bitmap(
+                MainViewButtonIconWidth,
+                MainViewButtonIconHeight,
+                System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+
+            using Graphics graphics = Graphics.FromImage(bitmap);
+            graphics.Clear(Color.Transparent);
+
+            return bitmap;
+        }
+
+        private static Color GetMainViewButtonIconColor(
+            bool active)
+        {
+            return active
+                ? MainViewButtonIconActiveColor
+                : MainViewButtonIconInactiveColor;
+        }
+
+        // Symbol Search
+        public static void ApplyMainSearchButtonIcon(
+            AntdUI.Button searchButton)
+        {
+            Bitmap searchIcon = CreateMainSearchButtonIcon();
+            Image previousIcon = searchButton.Icon;
+
+            searchButton.Icon = searchIcon;
+            searchButton.IconHover = searchIcon;
+
+            if (previousIcon != null &&
+                !ReferenceEquals(previousIcon, searchIcon))
+            {
+                previousIcon.Dispose();
+            }
+
+            searchButton.Invalidate();
+        }
+
+        // Lupe Search
+        private static Bitmap CreateMainSearchButtonIcon()
+        {
+            Bitmap bitmap = CreateMainViewButtonBitmap();
+
+            using Graphics graphics = Graphics.FromImage(bitmap);
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            using Pen iconPen = new Pen(
+                MainViewButtonIconInactiveColor,
+                MainViewButtonIconLineWidth);
+
+            graphics.DrawEllipse(iconPen, 2, 2, 9, 9);
+            graphics.DrawLine(iconPen, 10, 10, 14, 14);
+
+            return bitmap;
         }
 
         public static AntdUI.Button CreateMainButton(
@@ -1788,6 +2543,9 @@ namespace c2flux
             datePicker.Radius = radius;
             datePicker.DropDownArrow = true;
             datePicker.ShowIcon = true;
+            datePicker.ExpandDropChanged += (_, _) =>
+                ApplyDatePickerLocalization(datePicker);
+
         }
 
         // Search-Button - zentrale AntdUI-Darstellung
@@ -1814,8 +2572,7 @@ namespace c2flux
         public static void Apply(AppLayout layout)
         {
             _useDarkMode = ShouldUseDarkMode(layout);
-            AntdUI.Localization.Provider = new AntdUiCultureLocalization();
-            AntdUI.Localization.SetLanguage(CultureInfo.CurrentUICulture.Name);
+            ConfigureLocalization();
             AntdUI.Config.Mode = _useDarkMode ? AntdUI.TMode.Dark : AntdUI.TMode.Light;
         }
 

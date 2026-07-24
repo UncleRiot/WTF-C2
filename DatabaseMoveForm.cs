@@ -30,9 +30,15 @@ namespace c2flux
             Text = LocalizationService.GetText("DatabaseBrowse.Title");
             Icon = AppResources.ApplicationIcon;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(620, 280);
-            MinimumSize = Size;
-            MaximumSize = Size;
+            ClientSize = new Size(
+                AntdThemeService.DatabaseSelectionWindowWidth,
+                AntdThemeService.DatabaseSelectionWindowHeight);
+            MinimumSize = new Size(
+                AntdThemeService.DatabaseSelectionWindowWidth,
+                AntdThemeService.DatabaseSelectionWindowHeight);
+            MaximumSize = new Size(
+                AntdThemeService.DatabaseSelectionWindowWidth,
+                AntdThemeService.DatabaseSelectionWindowHeight);
             MaximizeBox = false;
             MinimizeBox = false;
             ShowInTaskbar = false;
@@ -40,15 +46,23 @@ namespace c2flux
             AntdUI.Label labelCurrentPath = new AntdUI.Label
             {
                 Text = LocalizationService.GetText("DatabaseBrowse.CurrentPath"),
-                Location = new Point(20, 18),
-                Size = new Size(580, 24),
+                Location = new Point(
+                    AntdThemeService.DatabaseSelectionCurrentPathLabelLeft,
+                    AntdThemeService.DatabaseSelectionCurrentPathLabelTop),
+                Size = new Size(
+                    AntdThemeService.DatabaseSelectionCurrentPathLabelWidth,
+                    AntdThemeService.DatabaseSelectionCurrentPathLabelHeight),
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
             AntdUI.Input textBoxCurrentDatabasePath = new AntdUI.Input
             {
-                Location = new Point(20, 44),
-                Size = new Size(580, 25),
+                Location = new Point(
+                    AntdThemeService.DatabaseSelectionCurrentPathInputLeft,
+                    AntdThemeService.DatabaseSelectionCurrentPathInputTop),
+                Size = new Size(
+                    AntdThemeService.DatabaseSelectionCurrentPathInputWidth,
+                    AntdThemeService.DatabaseSelectionCurrentPathInputHeight),
                 Text = _currentDatabasePath,
                 ReadOnly = true
             };
@@ -56,16 +70,24 @@ namespace c2flux
             AntdUI.Label labelHint = new AntdUI.Label
             {
                 Text = LocalizationService.GetText("DatabaseBrowse.Hint"),
-                Location = new Point(20, 82),
-                Size = new Size(580, 42),
+                Location = new Point(
+                    AntdThemeService.DatabaseSelectionHintLabelLeft,
+                    AntdThemeService.DatabaseSelectionHintLabelTop),
+                Size = new Size(
+                    AntdThemeService.DatabaseSelectionHintLabelWidth,
+                    AntdThemeService.DatabaseSelectionHintLabelHeight),
                 TextAlign = ContentAlignment.TopLeft
             };
 
             AntdUI.Button buttonMoveCurrentDatabase = new AntdUI.Button
             {
                 Text = LocalizationService.GetText("DatabaseBrowse.MoveCurrent"),
-                Location = new Point(20, 138),
-                Size = new Size(580, 32),
+                Location = new Point(
+                    AntdThemeService.DatabaseSelectionMoveDatabaseButtonLeft,
+                    AntdThemeService.DatabaseSelectionMoveDatabaseButtonTop),
+                Size = new Size(
+                    AntdThemeService.DatabaseSelectionMoveDatabaseButtonWidth,
+                    AntdThemeService.DatabaseSelectionMoveDatabaseButtonHeight),
                 Type = AntdUI.TTypeMini.Default,
                 Enabled = File.Exists(_currentDatabasePath)
             };
@@ -74,8 +96,12 @@ namespace c2flux
             AntdUI.Button buttonUseExistingDatabase = new AntdUI.Button
             {
                 Text = LocalizationService.GetText("DatabaseBrowse.UseExisting"),
-                Location = new Point(20, 178),
-                Size = new Size(580, 32),
+                Location = new Point(
+                    AntdThemeService.DatabaseSelectionUseExistingDatabaseButtonLeft,
+                    AntdThemeService.DatabaseSelectionUseExistingDatabaseButtonTop),
+                Size = new Size(
+                    AntdThemeService.DatabaseSelectionUseExistingDatabaseButtonWidth,
+                    AntdThemeService.DatabaseSelectionUseExistingDatabaseButtonHeight),
                 Type = AntdUI.TTypeMini.Default
             };
             buttonUseExistingDatabase.Click += buttonUseExistingDatabase_Click;
@@ -83,8 +109,12 @@ namespace c2flux
             AntdUI.Button buttonCreateNewDatabase = new AntdUI.Button
             {
                 Text = LocalizationService.GetText("DatabaseBrowse.CreateNew"),
-                Location = new Point(20, 218),
-                Size = new Size(475, 32),
+                Location = new Point(
+                    AntdThemeService.DatabaseSelectionCreateDatabaseButtonLeft,
+                    AntdThemeService.DatabaseSelectionCreateDatabaseButtonTop),
+                Size = new Size(
+                    AntdThemeService.DatabaseSelectionCreateDatabaseButtonWidth,
+                    AntdThemeService.DatabaseSelectionCreateDatabaseButtonHeight),
                 Type = AntdUI.TTypeMini.Default
             };
             buttonCreateNewDatabase.Click += buttonCreateNewDatabase_Click;
@@ -92,8 +122,12 @@ namespace c2flux
             AntdUI.Button buttonCancel = new AntdUI.Button
             {
                 Text = LocalizationService.GetText("Common.Cancel"),
-                Location = new Point(505, 218),
-                Size = new Size(95, 32),
+                Location = new Point(
+                    AntdThemeService.DatabaseSelectionCancelButtonLeft,
+                    AntdThemeService.DatabaseSelectionCancelButtonTop),
+                Size = new Size(
+                    AntdThemeService.DatabaseSelectionCancelButtonWidth,
+                    AntdThemeService.DatabaseSelectionCancelButtonHeight),
                 Type = AntdUI.TTypeMini.Default,
                 DialogResult = DialogResult.Cancel
             };

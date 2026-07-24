@@ -19,20 +19,20 @@ namespace c2flux
         private Panel panelBottom;
         private AntdUI.Label labelBaselineScan;
         private AntdUI.Label labelCompareScan;
-        private ComboBox comboBoxBaselineScan;
-        private ComboBox comboBoxCompareScan;
+        private AntdUI.Select comboBoxBaselineScan;
+        private AntdUI.Select comboBoxCompareScan;
         private AntdUI.Button buttonCompare;
         private AntdUI.Button buttonClose;
         private AntdUI.Button buttonRefresh;
         private AntdUI.Label labelStatus;
-        private TabControl tabControlResults;
-        private TabPage tabPageScans;
-        private TabPage tabPageOverview;
-        private TabPage tabPageSummary;
-        private TabPage tabPageFolderGrowth;
-        private TabPage tabPageNewFiles;
-        private TabPage tabPageChangedFiles;
-        private TabPage tabPageDeletedFiles;
+        private AntdUI.Tabs tabControlResults;
+        private AntdUI.TabPage tabPageScans;
+        private AntdUI.TabPage tabPageOverview;
+        private AntdUI.TabPage tabPageSummary;
+        private AntdUI.TabPage tabPageFolderGrowth;
+        private AntdUI.TabPage tabPageNewFiles;
+        private AntdUI.TabPage tabPageChangedFiles;
+        private AntdUI.TabPage tabPageDeletedFiles;
         private DataGridView dataGridViewScans;
         private ScanHistoryGrowthOverviewControl growthOverviewControl;
         private DataGridView dataGridViewSummary;
@@ -52,13 +52,13 @@ namespace c2flux
             InitializeComponent();
             Shown += ScanHistoryForm_Shown;
             AntdThemeService.Apply(this, _settings.Layout);
-            AntdThemeService.ApplyTable(dataGridViewScans);
+            AntdThemeService.ConfigureScanHistoryGrid(dataGridViewScans);
             growthOverviewControl.ApplyTheme();
-            AntdThemeService.ApplyTable(dataGridViewSummary);
-            AntdThemeService.ApplyTable(dataGridViewFolderGrowth);
-            AntdThemeService.ApplyTable(dataGridViewNewFiles);
-            AntdThemeService.ApplyTable(dataGridViewChangedFiles);
-            AntdThemeService.ApplyTable(dataGridViewDeletedFiles);
+            AntdThemeService.ConfigureScanHistoryGrid(dataGridViewSummary);
+            AntdThemeService.ConfigureScanHistoryGrid(dataGridViewFolderGrowth);
+            AntdThemeService.ConfigureScanHistoryGrid(dataGridViewNewFiles);
+            AntdThemeService.ConfigureScanHistoryGrid(dataGridViewChangedFiles);
+            AntdThemeService.ConfigureScanHistoryGrid(dataGridViewDeletedFiles);
             ApplyScanHistoryAntdUITheme();
         }
 
@@ -66,8 +66,12 @@ namespace c2flux
         {
             Text = LocalizationService.GetText("ScanHistory.Title");
             StartPosition = FormStartPosition.CenterParent;
-            MinimumSize = new Size(940, 560);
-            Size = new Size(1120, 700);
+            MinimumSize = new Size(
+                AntdThemeService.ScanHistoryWindowMinimumWidth,
+                AntdThemeService.ScanHistoryWindowMinimumHeight);
+            Size = new Size(
+                AntdThemeService.ScanHistoryWindowWidth,
+                AntdThemeService.ScanHistoryWindowHeight);
             ShowIcon = false;
 
             Color backgroundPrimary = AntdThemeService.BackgroundPrimary;
@@ -76,16 +80,24 @@ namespace c2flux
             panelTop = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 102,
-                Padding = new Padding(16, 12, 16, 8),
+                Height = AntdThemeService.ScanHistoryTopPanelHeight,
+                Padding = new Padding(
+                    AntdThemeService.ScanHistoryTopPanelPaddingLeft,
+                    AntdThemeService.ScanHistoryTopPanelPaddingTop,
+                    AntdThemeService.ScanHistoryTopPanelPaddingRight,
+                    AntdThemeService.ScanHistoryTopPanelPaddingBottom),
                 BackColor = backgroundSecondary
             };
 
             panelBottom = new Panel
             {
                 Dock = DockStyle.Bottom,
-                Height = 52,
-                Padding = new Padding(16, 8, 16, 10),
+                Height = AntdThemeService.ScanHistoryBottomPanelHeight,
+                Padding = new Padding(
+                    AntdThemeService.ScanHistoryBottomPanelPaddingLeft,
+                    AntdThemeService.ScanHistoryBottomPanelPaddingTop,
+                    AntdThemeService.ScanHistoryBottomPanelPaddingRight,
+                    AntdThemeService.ScanHistoryBottomPanelPaddingBottom),
                 BackColor = backgroundSecondary
             };
 
@@ -93,30 +105,52 @@ namespace c2flux
             {
                 Name = "labelBaselineScan",
                 Text = LocalizationService.GetText("ScanHistory.BaselineScan"),
-                Location = new Point(16, 16),
-                Size = new Size(110, 24),
+                Location = new Point(
+                    AntdThemeService.ScanHistoryBaselineLabelLeft,
+                    AntdThemeService.ScanHistoryBaselineLabelTop),
+                Size = new Size(
+                    AntdThemeService.ScanHistoryBaselineLabelWidth,
+                    AntdThemeService.ScanHistoryBaselineLabelHeight),
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
-            comboBoxBaselineScan = CreateScanComboBox("comboBoxBaselineScan", 132, 14);
+            comboBoxBaselineScan = AntdThemeService.CreateScanHistorySelect(
+                "comboBoxBaselineScan",
+                AntdThemeService.ScanHistoryBaselineSelectLeft,
+                AntdThemeService.ScanHistoryBaselineSelectTop,
+                AntdThemeService.ScanHistoryBaselineSelectWidth,
+                AntdThemeService.ScanHistoryBaselineSelectHeight);
 
             labelCompareScan = new AntdUI.Label
             {
                 Name = "labelCompareScan",
                 Text = LocalizationService.GetText("ScanHistory.CompareScan"),
-                Location = new Point(16, 52),
-                Size = new Size(110, 24),
+                Location = new Point(
+                    AntdThemeService.ScanHistoryCompareLabelLeft,
+                    AntdThemeService.ScanHistoryCompareLabelTop),
+                Size = new Size(
+                    AntdThemeService.ScanHistoryCompareLabelWidth,
+                    AntdThemeService.ScanHistoryCompareLabelHeight),
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
-            comboBoxCompareScan = CreateScanComboBox("comboBoxCompareScan", 132, 50);
+            comboBoxCompareScan = AntdThemeService.CreateScanHistorySelect(
+                "comboBoxCompareScan",
+                AntdThemeService.ScanHistoryCompareSelectLeft,
+                AntdThemeService.ScanHistoryCompareSelectTop,
+                AntdThemeService.ScanHistoryCompareSelectWidth,
+                AntdThemeService.ScanHistoryCompareSelectHeight);
 
             buttonCompare = new AntdUI.Button
             {
                 Name = "buttonCompare",
                 Text = LocalizationService.GetText("ScanHistory.Compare"),
-                Location = new Point(704, 14),
-                Size = new Size(112, 28),
+                Location = new Point(
+                    AntdThemeService.ScanHistoryCompareButtonLeft,
+                    AntdThemeService.ScanHistoryCompareButtonTop),
+                Size = new Size(
+                    AntdThemeService.ScanHistoryCompareButtonWidth,
+                    AntdThemeService.ScanHistoryCompareButtonHeight),
                 Type = AntdUI.TTypeMini.Default
             };
             buttonCompare.Click += buttonCompare_Click;
@@ -125,8 +159,12 @@ namespace c2flux
             {
                 Name = "buttonRefresh",
                 Text = LocalizationService.GetText("ScanHistory.Refresh"),
-                Location = new Point(704, 50),
-                Size = new Size(112, 28),
+                Location = new Point(
+                    AntdThemeService.ScanHistoryRefreshButtonLeft,
+                    AntdThemeService.ScanHistoryRefreshButtonTop),
+                Size = new Size(
+                    AntdThemeService.ScanHistoryRefreshButtonWidth,
+                    AntdThemeService.ScanHistoryRefreshButtonHeight),
                 Type = AntdUI.TTypeMini.Default
             };
             buttonRefresh.Click += buttonRefresh_Click;
@@ -135,16 +173,21 @@ namespace c2flux
             {
                 Name = "labelStatus",
                 Text = string.Empty,
-                Location = new Point(832, 16),
-                Size = new Size(240, 60),
+                Location = new Point(
+                    AntdThemeService.ScanHistoryStatusLabelLeft,
+                    AntdThemeService.ScanHistoryStatusLabelTop),
+                Size = new Size(
+                    AntdThemeService.ScanHistoryStatusLabelWidth,
+                    AntdThemeService.ScanHistoryStatusLabelHeight),
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
-            tabControlResults = new ScanHistoryTabControl
+            tabControlResults = new AntdUI.Tabs
             {
-                Dock = DockStyle.Fill,
-                Padding = new Point(12, 4)
+                Name = "tabControlResults",
+                Dock = DockStyle.Fill
             };
+            AntdThemeService.ConfigureScanHistoryTabs(tabControlResults);
 
             tabPageScans = CreateTabPage("tabPageScans", LocalizationService.GetText("ScanHistory.Scans"));
             tabPageOverview = CreateTabPage("tabPageOverview", LocalizationService.GetText("ScanHistory.Overview"));
@@ -181,21 +224,25 @@ namespace c2flux
             tabPageChangedFiles.Controls.Add(dataGridViewChangedFiles);
             tabPageDeletedFiles.Controls.Add(dataGridViewDeletedFiles);
 
-            tabControlResults.TabPages.Add(tabPageScans);
-            tabControlResults.TabPages.Add(tabPageOverview);
-            tabControlResults.TabPages.Add(tabPageSummary);
-            tabControlResults.TabPages.Add(tabPageFolderGrowth);
-            tabControlResults.TabPages.Add(tabPageNewFiles);
-            tabControlResults.TabPages.Add(tabPageChangedFiles);
-            tabControlResults.TabPages.Add(tabPageDeletedFiles);
+            tabControlResults.Pages.Add(tabPageScans);
+            tabControlResults.Pages.Add(tabPageOverview);
+            tabControlResults.Pages.Add(tabPageSummary);
+            tabControlResults.Pages.Add(tabPageFolderGrowth);
+            tabControlResults.Pages.Add(tabPageNewFiles);
+            tabControlResults.Pages.Add(tabPageChangedFiles);
+            tabControlResults.Pages.Add(tabPageDeletedFiles);
 
             buttonClose = new AntdUI.Button
             {
                 Name = "buttonClose",
                 Text = LocalizationService.GetText("Common.Close"),
                 Anchor = AnchorStyles.Right | AnchorStyles.Top,
-                Location = new Point(1014, 10),
-                Size = new Size(90, 30),
+                Location = new Point(
+                    AntdThemeService.ScanHistoryCloseButtonLeft,
+                    AntdThemeService.ScanHistoryCloseButtonTop),
+                Size = new Size(
+                    AntdThemeService.ScanHistoryCloseButtonWidth,
+                    AntdThemeService.ScanHistoryCloseButtonHeight),
                 DialogResult = DialogResult.OK,
                 Type = AntdUI.TTypeMini.Default
             };
@@ -212,8 +259,8 @@ namespace c2flux
             Panel resultsHostPanel = AntdThemeService.CreateTableHost(
                 tabControlResults,
                 backgroundPrimary,
-                0,
-                0);
+                AntdThemeService.ScanHistoryResultsHostPaddingTop,
+                AntdThemeService.ScanHistoryResultsHostPaddingBottom);
 
             Controls.Add(resultsHostPanel);
             Controls.Add(panelBottom);
@@ -226,36 +273,30 @@ namespace c2flux
             ScanHistoryForm_Resize(this, EventArgs.Empty);
         }
 
-        private ComboBox CreateScanComboBox(string name, int left, int top)
+
+
+        private static AntdUI.TabPage CreateTabPage(
+            string name,
+            string text)
         {
-            ComboBox comboBox = new ScanHistoryComboBox
+            AntdUI.TabPage tabPage = new AntdUI.TabPage
             {
                 Name = name,
-                Location = new Point(left, top),
-                Size = new Size(552, 26),
-                DisplayMember = nameof(ScanHistoryInfo.DisplayName),
-                Font = SystemFonts.MessageBoxFont
+                Text = text,
+                BackColor = AntdThemeService.BackgroundPrimary,
+                ForeColor = AntdThemeService.TextPrimary,
+                Padding = new Padding(
+                    AntdThemeService.ScanHistoryTabPagePaddingLeft,
+                    AntdThemeService.ScanHistoryTabPagePaddingTop,
+                    AntdThemeService.ScanHistoryTabPagePaddingRight,
+                    AntdThemeService.ScanHistoryTabPagePaddingBottom)
             };
-
-            return comboBox;
-        }
-
-        private static TabPage CreateTabPage(string name, string text)
-        {
-            TabPage tabPage = new TabPage
-            {
-                Name = name,
-                Text = text
-            };
-
-            AntdThemeService.ConfigureTablePage(
-                tabPage,
-                AntdThemeService.BackgroundPrimary);
 
             return tabPage;
         }
 
-        private static DataGridView CreateGrid(string name)
+        private static DataGridView CreateGrid(
+            string name)
         {
             DataGridView grid = new DataGridView
             {
@@ -267,17 +308,14 @@ namespace c2flux
                 AllowUserToOrderColumns = false,
                 AllowUserToResizeRows = false,
                 AutoGenerateColumns = false,
-                BackgroundColor = AntdThemeService.BackgroundSecondary,
-                BorderStyle = BorderStyle.None,
-                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
-                ColumnHeadersHeight = 28,
                 EditMode = DataGridViewEditMode.EditProgrammatically,
                 MultiSelect = false,
                 ReadOnly = true,
                 RowHeadersVisible = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect
             };
+
+            AntdThemeService.ConfigureScanHistoryGrid(grid);
 
             grid.MouseMove += grid_MouseMove;
             grid.CellMouseMove += grid_CellMouseMove;
@@ -304,68 +342,46 @@ namespace c2flux
 
                 private void ApplyScanHistoryAntdUITheme()
         {
-            Color backgroundPrimary = AntdThemeService.BackgroundPrimary;
-            Color backgroundSecondary = AntdThemeService.BackgroundSecondary;
-            Color textPrimary = AntdThemeService.TextPrimary;
+            panelTop.BackColor = AntdThemeService.BackgroundPrimary;
+            panelBottom.BackColor = AntdThemeService.BackgroundPrimary;
 
-            panelTop.BackColor = backgroundPrimary;
-            panelBottom.BackColor = backgroundPrimary;
-
-            if (tabControlResults is ScanHistoryTabControl scanHistoryTabControl)
-            {
-                scanHistoryTabControl.ApplyTheme(backgroundPrimary, backgroundSecondary, textPrimary);
-            }
-
-            ApplyScanComboBoxTheme(comboBoxBaselineScan, backgroundPrimary, textPrimary);
-            ApplyScanComboBoxTheme(comboBoxCompareScan, backgroundPrimary, textPrimary);
+            AntdThemeService.ConfigureScanHistoryTabs(tabControlResults);
         }
 
-        private static void ApplyScanComboBoxTheme(ComboBox comboBox, Color backColor, Color foreColor)
-        {
-            if (comboBox == null)
-                return;
 
-            comboBox.BackColor = backColor;
-            comboBox.ForeColor = foreColor;
-            comboBox.FlatStyle = FlatStyle.Flat;
-            comboBox.DrawMode = DrawMode.OwnerDrawFixed;
-            comboBox.DropDownStyle = ComboBoxStyle.DropDownList;
-            comboBox.ItemHeight = 20;
-            comboBox.Invalidate();
-        }
 
         private void ConfigureScansGrid()
         {
-            AddTextColumn(dataGridViewScans, "CreatedLocal", LocalizationService.GetText("ScanHistory.Date"), 150);
-            AddTextColumn(dataGridViewScans, "RootPath", LocalizationService.GetText("ScanHistory.RootPath"), 360);
-            AddTextColumn(dataGridViewScans, "RootSize", LocalizationService.GetText("ScanHistory.TotalSize"), 100);
-            AddTextColumn(dataGridViewScans, "FileCount", LocalizationService.GetText("Common.Files"), 80);
-            AddTextColumn(dataGridViewScans, "DirectoryCount", LocalizationService.GetText("Common.Folders"), 80);
+            AddTextColumn(dataGridViewScans, "CreatedLocal", LocalizationService.GetText("ScanHistory.Date"), AntdThemeService.ScanHistoryScansDateColumnWidth);
+            AddTextColumn(dataGridViewScans, "RootPath", LocalizationService.GetText("ScanHistory.RootPath"), AntdThemeService.ScanHistoryScansRootPathColumnWidth);
+            AddTextColumn(dataGridViewScans, "RootSize", LocalizationService.GetText("ScanHistory.TotalSize"), AntdThemeService.ScanHistoryScansTotalSizeColumnWidth);
+            AddTextColumn(dataGridViewScans, "FileCount", LocalizationService.GetText("Common.Files"), AntdThemeService.ScanHistoryScansFilesColumnWidth);
+            AddTextColumn(dataGridViewScans, "DirectoryCount", LocalizationService.GetText("Common.Folders"), AntdThemeService.ScanHistoryScansFoldersColumnWidth);
         }
 
         private void ConfigureSummaryGrid()
         {
-            AddTextColumn(dataGridViewSummary, "Metric", LocalizationService.GetText("ScanHistory.Metric"), 260);
-            AddTextColumn(dataGridViewSummary, "Value", LocalizationService.GetText("ScanHistory.Value"), 420);
+            AddTextColumn(dataGridViewSummary, "Metric", LocalizationService.GetText("ScanHistory.Metric"), AntdThemeService.ScanHistorySummaryMetricColumnWidth);
+            AddTextColumn(dataGridViewSummary, "Value", LocalizationService.GetText("ScanHistory.Value"), AntdThemeService.ScanHistorySummaryValueColumnWidth);
         }
 
         private void ConfigureFolderGrowthGrid()
         {
-            AddTextColumn(dataGridViewFolderGrowth, "Path", LocalizationService.GetText("ScanHistory.Path"), 420);
-            AddTextColumn(dataGridViewFolderGrowth, "BaselineSize", LocalizationService.GetText("ScanHistory.BaselineSize"), 120);
-            AddTextColumn(dataGridViewFolderGrowth, "CompareSize", LocalizationService.GetText("ScanHistory.CompareSize"), 120);
-            AddTextColumn(dataGridViewFolderGrowth, "Delta", LocalizationService.GetText("ScanHistory.Delta"), 110);
-            AddTextColumn(dataGridViewFolderGrowth, "NewFileCount", LocalizationService.GetText("ScanHistory.NewFiles"), 90);
-            AddTextColumn(dataGridViewFolderGrowth, "ChangedFileCount", LocalizationService.GetText("ScanHistory.ChangedFiles"), 110);
+            AddTextColumn(dataGridViewFolderGrowth, "Path", LocalizationService.GetText("ScanHistory.Path"), AntdThemeService.ScanHistoryFolderGrowthPathColumnWidth);
+            AddTextColumn(dataGridViewFolderGrowth, "BaselineSize", LocalizationService.GetText("ScanHistory.BaselineSize"), AntdThemeService.ScanHistoryFolderGrowthBaselineSizeColumnWidth);
+            AddTextColumn(dataGridViewFolderGrowth, "CompareSize", LocalizationService.GetText("ScanHistory.CompareSize"), AntdThemeService.ScanHistoryFolderGrowthCompareSizeColumnWidth);
+            AddTextColumn(dataGridViewFolderGrowth, "Delta", LocalizationService.GetText("ScanHistory.Delta"), AntdThemeService.ScanHistoryFolderGrowthDeltaColumnWidth);
+            AddTextColumn(dataGridViewFolderGrowth, "NewFileCount", LocalizationService.GetText("ScanHistory.NewFiles"), AntdThemeService.ScanHistoryFolderGrowthNewFilesColumnWidth);
+            AddTextColumn(dataGridViewFolderGrowth, "ChangedFileCount", LocalizationService.GetText("ScanHistory.ChangedFiles"), AntdThemeService.ScanHistoryFolderGrowthChangedFilesColumnWidth);
         }
 
         private void ConfigureFileChangeGrid(DataGridView grid)
         {
-            AddTextColumn(grid, "Path", LocalizationService.GetText("ScanHistory.Path"), 420);
-            AddTextColumn(grid, "BaselineSize", LocalizationService.GetText("ScanHistory.BaselineSize"), 120);
-            AddTextColumn(grid, "CompareSize", LocalizationService.GetText("ScanHistory.CompareSize"), 120);
-            AddTextColumn(grid, "Delta", LocalizationService.GetText("ScanHistory.Delta"), 110);
-            AddTextColumn(grid, "LastWriteTimeUtc", LocalizationService.GetText("ScanHistory.LastWriteUtc"), 150);
+            AddTextColumn(grid, "Path", LocalizationService.GetText("ScanHistory.Path"), AntdThemeService.ScanHistoryFileChangePathColumnWidth);
+            AddTextColumn(grid, "BaselineSize", LocalizationService.GetText("ScanHistory.BaselineSize"), AntdThemeService.ScanHistoryFileChangeBaselineSizeColumnWidth);
+            AddTextColumn(grid, "CompareSize", LocalizationService.GetText("ScanHistory.CompareSize"), AntdThemeService.ScanHistoryFileChangeCompareSizeColumnWidth);
+            AddTextColumn(grid, "Delta", LocalizationService.GetText("ScanHistory.Delta"), AntdThemeService.ScanHistoryFileChangeDeltaColumnWidth);
+            AddTextColumn(grid, "LastWriteTimeUtc", LocalizationService.GetText("ScanHistory.LastWriteUtc"), AntdThemeService.ScanHistoryFileChangeLastWriteUtcColumnWidth);
         }
 
         private static void AddTextColumn(DataGridView grid, string dataPropertyName, string headerText, int width)
@@ -442,8 +458,14 @@ namespace c2flux
                 .Select(scanHistoryInfo => new ScanHistoryListRow(scanHistoryInfo))
                 .ToList();
 
-            comboBoxBaselineScan.DataSource = scanHistoryInfos.ToList();
-            comboBoxCompareScan.DataSource = scanHistoryInfos.ToList();
+            comboBoxBaselineScan.Items.Clear();
+            comboBoxCompareScan.Items.Clear();
+
+            foreach (ScanHistoryInfo scanHistoryInfo in scanHistoryInfos)
+            {
+                comboBoxBaselineScan.Items.Add(scanHistoryInfo.DisplayName);
+                comboBoxCompareScan.Items.Add(scanHistoryInfo.DisplayName);
+            }
 
             if (scanHistoryInfos.Count >= 2)
             {
@@ -459,9 +481,19 @@ namespace c2flux
 
         private async void buttonCompare_Click(object sender, EventArgs e)
         {
-            if (comboBoxBaselineScan.SelectedItem is not ScanHistoryInfo baselineScanInfo ||
-                comboBoxCompareScan.SelectedItem is not ScanHistoryInfo compareScanInfo)
+            int baselineIndex = comboBoxBaselineScan.SelectedIndex;
+            int compareIndex = comboBoxCompareScan.SelectedIndex;
+
+            if (baselineIndex < 0 ||
+                baselineIndex >= scanHistoryInfos.Count ||
+                compareIndex < 0 ||
+                compareIndex >= scanHistoryInfos.Count)
+            {
                 return;
+            }
+
+            ScanHistoryInfo baselineScanInfo = scanHistoryInfos[baselineIndex];
+            ScanHistoryInfo compareScanInfo = scanHistoryInfos[compareIndex];
 
             if (string.Equals(baselineScanInfo.FilePath, compareScanInfo.FilePath, StringComparison.OrdinalIgnoreCase))
             {
@@ -728,219 +760,47 @@ namespace c2flux
             }
         }
 
-        private void ScanHistoryForm_Resize(object sender, EventArgs e)
+        private void ScanHistoryForm_Resize(
+            object sender,
+            EventArgs e)
         {
-            int topButtonLeft = Math.Max(704, ClientSize.Width - 416);
+            int topButtonLeft = Math.Max(
+                AntdThemeService.ScanHistoryCompareButtonLeft,
+                ClientSize.Width -
+                AntdThemeService.ScanHistoryTopRightAreaWidth);
+
             buttonCompare.Left = topButtonLeft;
             buttonRefresh.Left = topButtonLeft;
-            labelStatus.Left = topButtonLeft + 128;
-            labelStatus.Width = Math.Max(180, ClientSize.Width - labelStatus.Left - 24);
 
-            int comboWidth = Math.Max(320, topButtonLeft - comboBoxBaselineScan.Left - 20);
-            comboBoxBaselineScan.Width = comboWidth;
-            comboBoxCompareScan.Width = comboWidth;
+            labelStatus.Left =
+                topButtonLeft +
+                AntdThemeService.ScanHistoryStatusLabelOffsetFromButtons;
 
-            buttonClose.Left = Math.Max(16, panelBottom.ClientSize.Width - buttonClose.Width - 16);
+            labelStatus.Width = Math.Max(
+                AntdThemeService.ScanHistoryStatusLabelMinimumWidth,
+                ClientSize.Width -
+                labelStatus.Left -
+                AntdThemeService.ScanHistoryStatusLabelRightMargin);
+
+            int selectWidth = Math.Max(
+                AntdThemeService.ScanHistorySelectMinimumWidth,
+                topButtonLeft -
+                comboBoxBaselineScan.Left -
+                AntdThemeService.ScanHistorySelectRightSpacing);
+
+            comboBoxBaselineScan.Width = selectWidth;
+            comboBoxCompareScan.Width = selectWidth;
+
+            buttonClose.Left = Math.Max(
+                AntdThemeService.ScanHistoryBottomPanelPaddingLeft,
+                panelBottom.ClientSize.Width -
+                buttonClose.Width -
+                AntdThemeService.ScanHistoryBottomPanelPaddingRight);
         }
 
-        private sealed class ScanHistoryComboBox : ComboBox
-        {
-            public ScanHistoryComboBox()
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList;
-                DrawMode = DrawMode.OwnerDrawFixed;
-                FlatStyle = FlatStyle.Flat;
-                IntegralHeight = false;
-                ItemHeight = 20;
-            }
 
-            protected override void OnDrawItem(DrawItemEventArgs e)
-            {
-                if (e.Index < 0 || e.Index >= Items.Count)
-                    return;
 
-                bool selected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
 
-                Color backgroundColor = selected
-                    ? SystemColors.Highlight
-                    : BackColor;
-
-                Color textColor = selected
-                    ? SystemColors.HighlightText
-                    : ForeColor;
-
-                using (SolidBrush backgroundBrush = new SolidBrush(backgroundColor))
-                {
-                    e.Graphics.FillRectangle(backgroundBrush, e.Bounds);
-                }
-
-                Rectangle iconBounds = new Rectangle(
-                    e.Bounds.Left + 6,
-                    e.Bounds.Top + Math.Max(0, (e.Bounds.Height - 14) / 2),
-                    14,
-                    14);
-
-                DrawScanHistoryIcon(e.Graphics, iconBounds, selected);
-
-                Rectangle textBounds = new Rectangle(
-                    e.Bounds.Left + 28,
-                    e.Bounds.Top,
-                    Math.Max(0, e.Bounds.Width - 34),
-                    e.Bounds.Height);
-
-                string text = GetItemText(Items[e.Index]);
-
-                TextRenderer.DrawText(
-                    e.Graphics,
-                    text,
-                    Font,
-                    textBounds,
-                    textColor,
-                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-
-                e.DrawFocusRectangle();
-            }
-
-            private static void DrawScanHistoryIcon(Graphics graphics, Rectangle bounds, bool selected)
-            {
-                Color outlineColor = selected
-                    ? SystemColors.HighlightText
-                    : AntdThemeService.TextPrimary;
-
-                Color accentColor = selected
-                    ? SystemColors.HighlightText
-                    : AntdThemeService.Accent;
-
-                Rectangle databaseBounds = new Rectangle(bounds.Left, bounds.Top + 2, bounds.Width - 1, bounds.Height - 4);
-
-                using (Pen outlinePen = new Pen(outlineColor))
-                using (Pen accentPen = new Pen(accentColor))
-                {
-                    graphics.DrawEllipse(
-                        accentPen,
-                        databaseBounds.Left,
-                        databaseBounds.Top,
-                        databaseBounds.Width,
-                        4);
-
-                    graphics.DrawLine(
-                        outlinePen,
-                        databaseBounds.Left,
-                        databaseBounds.Top + 2,
-                        databaseBounds.Left,
-                        databaseBounds.Bottom - 2);
-
-                    graphics.DrawLine(
-                        outlinePen,
-                        databaseBounds.Right,
-                        databaseBounds.Top + 2,
-                        databaseBounds.Right,
-                        databaseBounds.Bottom - 2);
-
-                    graphics.DrawArc(
-                        outlinePen,
-                        databaseBounds.Left,
-                        databaseBounds.Bottom - 4,
-                        databaseBounds.Width,
-                        4,
-                        0,
-                        180);
-
-                    graphics.DrawLine(
-                        accentPen,
-                        databaseBounds.Left + 3,
-                        databaseBounds.Top + 7,
-                        databaseBounds.Right - 3,
-                        databaseBounds.Top + 7);
-                }
-            }
-        }
-
-        private sealed class ScanHistoryTabControl : TabControl
-        {
-            private Color _backgroundPrimary = Color.FromArgb(32, 32, 32);
-            private Color _backgroundSecondary = Color.FromArgb(45, 45, 45);
-            private Color _textPrimary = Color.White;
-
-            public ScanHistoryTabControl()
-            {
-                DrawMode = TabDrawMode.OwnerDrawFixed;
-                SizeMode = TabSizeMode.Normal;
-                ItemSize = new Size(112, 28);
-                Padding = new Point(12, 4);
-            }
-
-            public void ApplyTheme(Color backgroundPrimary, Color backgroundSecondary, Color textPrimary)
-            {
-                _backgroundPrimary = backgroundPrimary;
-                _backgroundSecondary = backgroundSecondary;
-                _textPrimary = textPrimary;
-
-                BackColor = _backgroundPrimary;
-                ForeColor = _textPrimary;
-                DrawMode = TabDrawMode.OwnerDrawFixed;
-
-                foreach (TabPage tabPage in TabPages)
-                {
-                    tabPage.BackColor = _backgroundPrimary;
-                    tabPage.ForeColor = _textPrimary;
-                }
-
-                Invalidate();
-            }
-
-            protected override void OnDrawItem(DrawItemEventArgs e)
-            {
-                if (e.Index < 0 || e.Index >= TabPages.Count)
-                    return;
-
-                bool selected = e.Index == SelectedIndex;
-                Rectangle tabBounds = GetTabRect(e.Index);
-                tabBounds.Inflate(-1, 0);
-
-                Color tabBackColor = selected
-                    ? _backgroundPrimary
-                    : _backgroundSecondary;
-
-                Color borderColor = ControlPaint.Light(_backgroundSecondary, 0.25f);
-                Color accentColor = AntdThemeService.Accent;
-
-                using (SolidBrush backgroundBrush = new SolidBrush(tabBackColor))
-                {
-                    e.Graphics.FillRectangle(backgroundBrush, tabBounds);
-                }
-
-                using (Pen borderPen = new Pen(borderColor))
-                {
-                    e.Graphics.DrawRectangle(borderPen, tabBounds);
-                }
-
-                if (selected)
-                {
-                    using Pen accentPen = new Pen(accentColor, 2);
-                    e.Graphics.DrawLine(
-                        accentPen,
-                        tabBounds.Left + 1,
-                        tabBounds.Bottom - 2,
-                        tabBounds.Right - 1,
-                        tabBounds.Bottom - 2);
-                }
-
-                TextRenderer.DrawText(
-                    e.Graphics,
-                    TabPages[e.Index].Text,
-                    Font,
-                    tabBounds,
-                    _textPrimary,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-            }
-
-            protected override void OnPaintBackground(PaintEventArgs e)
-            {
-                using SolidBrush backgroundBrush = new SolidBrush(_backgroundPrimary);
-                e.Graphics.FillRectangle(backgroundBrush, ClientRectangle);
-            }
-        }
 
         private sealed class DatabaseMaintenanceForm : Form
         {

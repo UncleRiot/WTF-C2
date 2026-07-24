@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -32,6 +32,7 @@ namespace c2flux
         private AntdUI.Checkbox checkBoxStartElevatedOnStartup;
         private AntdUI.Checkbox checkBoxShowElevationPromptOnStartup;
         private AntdUI.Checkbox checkBoxShellContextMenuEnabled;
+        private AntdUI.Checkbox checkBoxShellSearchContextMenuEnabled;
         private AntdUI.Checkbox checkBoxAutoCheckForUpdates;
         private AntdUI.Label labelLanguage;
         private AntdUI.Select comboBoxLanguage;
@@ -57,10 +58,10 @@ namespace c2flux
         private AntdUI.Input textBoxBarChartBarHeight;
         private AntdUI.Label labelBarChartBarHeightDefault;
         private AntdUI.Checkbox checkBoxSaveScanHistory;
+        private AntdUI.Button buttonSaveScanHistoryHelp;
         private AntdUI.Label labelScanHistoryDatabasePath;
         private AntdUI.Input textBoxScanHistoryDatabasePath;
         private AntdUI.Button buttonBrowseScanHistoryDatabasePath;
-        private AntdUI.Label labelScanHistoryDatabaseMoveHint;
         private AntdUI.Label labelScanHistoryDatabaseSize;
         private AntdUI.Label labelScanHistoryMaximumScansPerPath;
         private AntdUI.Input textBoxScanHistoryMaximumScansPerPath;
@@ -312,6 +313,15 @@ namespace c2flux
                 AntdThemeService.SettingsGeneralShellContextMenuCheckboxHeight,
                 backgroundSecondary);
 
+            checkBoxShellSearchContextMenuEnabled = AntdThemeService.CreateSettingsCheckBox(
+                "checkBoxShellSearchContextMenuEnabled",
+                LocalizationService.GetText("Settings.ShellSearchContextMenu"),
+                AntdThemeService.SettingsGeneralShellSearchContextMenuCheckboxLeft,
+                AntdThemeService.SettingsGeneralShellSearchContextMenuCheckboxTop,
+                AntdThemeService.SettingsGeneralShellSearchContextMenuCheckboxWidth,
+                AntdThemeService.SettingsGeneralShellSearchContextMenuCheckboxHeight,
+                backgroundSecondary);
+
             checkBoxAutoCheckForUpdates = AntdThemeService.CreateSettingsCheckBox(
                 "checkBoxAutoCheckForUpdates",
                 LocalizationService.GetText("Settings.AutoCheckForUpdates"),
@@ -520,6 +530,26 @@ namespace c2flux
                 backgroundSecondary);
             checkBoxSaveScanHistory.CheckedChanged += checkBoxSaveScanHistory_CheckedChanged;
 
+            buttonSaveScanHistoryHelp = new AntdUI.Button
+            {
+                Name = "buttonSaveScanHistoryHelp",
+                Text = "?",
+                Location = new Point(
+                    AntdThemeService.SettingsStatisticsSaveScanHistoryHelpButtonLeft,
+                    AntdThemeService.SettingsStatisticsSaveScanHistoryHelpButtonTop),
+                Size = new Size(
+                    AntdThemeService.SettingsStatisticsSaveScanHistoryHelpButtonWidth,
+                    AntdThemeService.SettingsStatisticsSaveScanHistoryHelpButtonHeight),
+                Type = AntdUI.TTypeMini.Primary,
+                Radius = AntdThemeService.SettingsStatisticsSaveScanHistoryHelpButtonRadius,
+                TabStop = false
+            };
+            toolTip.SetToolTip(
+                buttonSaveScanHistoryHelp,
+                AntdThemeService.WrapToolTipText(
+                    LocalizationService.GetText("Settings.SaveScanHistoryHelp"),
+                    AntdThemeService.SettingsStatisticsSaveScanHistoryHelpToolTipMaximumWidth));
+
             labelScanHistoryDatabasePath = new AntdUI.Label
             {
                 Name = "labelScanHistoryDatabasePath",
@@ -562,20 +592,6 @@ namespace c2flux
                 Visible = false
             };
             buttonBrowseScanHistoryDatabasePath.Click += buttonBrowseScanHistoryDatabasePath_Click;
-
-            labelScanHistoryDatabaseMoveHint = new AntdUI.Label
-            {
-                Name = "labelScanHistoryDatabaseMoveHint",
-                Text = LocalizationService.GetText("Settings.ScanHistoryDatabaseMoveHint"),
-                Location = new Point(
-                    AntdThemeService.SettingsStatisticsDatabaseMoveHintLabelLeft,
-                    AntdThemeService.SettingsStatisticsDatabaseMoveHintLabelTop),
-                Size = new Size(
-                    AntdThemeService.SettingsStatisticsDatabaseMoveHintLabelWidth,
-                    AntdThemeService.SettingsStatisticsDatabaseMoveHintLabelHeight),
-                TextAlign = ContentAlignment.MiddleLeft,
-                Visible = false
-            };
 
             labelScanHistoryDatabaseSize = new AntdUI.Label
             {
@@ -697,6 +713,7 @@ namespace c2flux
             panelGeneral.Controls.Add(checkBoxStartElevatedOnStartup);
             panelGeneral.Controls.Add(checkBoxShowElevationPromptOnStartup);
             panelGeneral.Controls.Add(checkBoxShellContextMenuEnabled);
+            panelGeneral.Controls.Add(checkBoxShellSearchContextMenuEnabled);
             panelGeneral.Controls.Add(checkBoxAutoCheckForUpdates);
             panelGeneral.Controls.Add(labelLanguage);
             panelGeneral.Controls.Add(comboBoxLanguage);
@@ -723,10 +740,10 @@ namespace c2flux
             panelLayout.Controls.Add(labelBarChartBarHeightDefault);
 
             panelStatistics.Controls.Add(checkBoxSaveScanHistory);
+            panelStatistics.Controls.Add(buttonSaveScanHistoryHelp);
             panelStatistics.Controls.Add(labelScanHistoryDatabasePath);
             panelStatistics.Controls.Add(textBoxScanHistoryDatabasePath);
             panelStatistics.Controls.Add(buttonBrowseScanHistoryDatabasePath);
-            panelStatistics.Controls.Add(labelScanHistoryDatabaseMoveHint);
             panelStatistics.Controls.Add(labelScanHistoryDatabaseSize);
             panelStatistics.Controls.Add(labelScanHistoryMaximumScansPerPath);
             panelStatistics.Controls.Add(textBoxScanHistoryMaximumScansPerPath);
@@ -844,7 +861,6 @@ namespace c2flux
             labelScanHistoryDatabasePath.Visible = showDatabasePath;
             textBoxScanHistoryDatabasePath.Visible = showDatabasePath;
             buttonBrowseScanHistoryDatabasePath.Visible = showDatabasePath;
-            labelScanHistoryDatabaseMoveHint.Visible = showDatabasePath;
             labelScanHistoryDatabaseSize.Visible = showDatabasePath;
             labelScanHistoryMaximumScansPerPath.Visible = showDatabasePath;
             textBoxScanHistoryMaximumScansPerPath.Visible = showDatabasePath;
@@ -1188,6 +1204,7 @@ namespace c2flux
             checkBoxStartElevatedOnStartup.Checked = _settings.StartElevatedOnStartup;
             checkBoxShowElevationPromptOnStartup.Checked = _settings.ShowElevationPromptOnStartup;
             checkBoxShellContextMenuEnabled.Checked = _settings.ShellContextMenuEnabled;
+            checkBoxShellSearchContextMenuEnabled.Checked = _settings.ShellSearchContextMenuEnabled;
             checkBoxAutoCheckForUpdates.Checked = _settings.AutoCheckForUpdates;
             checkBoxExportPath.Checked = _settings.ExportPath;
             checkBoxExportSizeGb.Checked = _settings.ExportSizeGb;
@@ -1338,6 +1355,7 @@ namespace c2flux
             _settings.StartElevatedOnStartup = checkBoxStartElevatedOnStartup.Checked;
             _settings.ShowElevationPromptOnStartup = checkBoxShowElevationPromptOnStartup.Checked;
             _settings.ShellContextMenuEnabled = checkBoxShellContextMenuEnabled.Checked;
+            _settings.ShellSearchContextMenuEnabled = checkBoxShellSearchContextMenuEnabled.Checked;
             _settings.AutoCheckForUpdates = checkBoxAutoCheckForUpdates.Checked;
             _settings.ExportPath = checkBoxExportPath.Checked;
             _settings.ExportSizeGb = checkBoxExportSizeGb.Checked;
@@ -1386,7 +1404,9 @@ namespace c2flux
 
             try
             {
-                ShellContextMenuService.Apply(_settings.ShellContextMenuEnabled);
+                ShellContextMenuService.Apply(
+                    _settings.ShellContextMenuEnabled,
+                    _settings.ShellSearchContextMenuEnabled);
             }
             catch
             {

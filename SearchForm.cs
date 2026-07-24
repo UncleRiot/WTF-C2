@@ -17,6 +17,7 @@ namespace c2flux
         private readonly AppSettings _settings;
         private readonly Func<FileSystemEntry> _currentRootEntryProvider;
         private readonly Func<string, Task<FileSystemEntry>> _scanDriveProvider;
+        private readonly string _initialDrivePath;
         private readonly SearchService _searchService = new SearchService();
         private readonly ConcurrentQueue<SearchResult> _pendingResults = new ConcurrentQueue<SearchResult>();
         private readonly System.Windows.Forms.Timer _resultTimer;
@@ -78,13 +79,15 @@ namespace c2flux
         public SearchForm(
             AppSettings settings,
             Func<FileSystemEntry> currentRootEntryProvider,
-            Func<string, Task<FileSystemEntry>> scanDriveProvider)
+            Func<string, Task<FileSystemEntry>> scanDriveProvider,
+            string initialDrivePath = null)
         {
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _currentRootEntryProvider = currentRootEntryProvider ??
                 throw new ArgumentNullException(nameof(currentRootEntryProvider));
             _scanDriveProvider = scanDriveProvider ??
                 throw new ArgumentNullException(nameof(scanDriveProvider));
+            _initialDrivePath = NormalizeDrivePath(initialDrivePath);
 
             _suspendSettingsSave = true;
             AntdThemeService.Apply(_settings.Layout);
@@ -124,6 +127,7 @@ namespace c2flux
 
             LoadSavedScans();
             LoadSearchSources();
+            SelectInitialDriveSource();
             UpdateSearchSourceState();
             UpdateFilterPanelState();
             UpdateSearchButtonState();
@@ -163,13 +167,11 @@ namespace c2flux
             {
                 Dock = DockStyle.Top,
                 AutoSize = true,
-                ColumnCount = 4,
+                ColumnCount = 2,
                 RowCount = 4
             };
             layoutSearch.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            layoutSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            layoutSearch.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            layoutSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            layoutSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
 
             comboBoxSource = new AntdUI.Select
             {
@@ -201,16 +203,12 @@ namespace c2flux
 
             layoutSearch.Controls.Add(CreateLabel("Search.Source"), 0, 0);
             layoutSearch.Controls.Add(comboBoxSource, 1, 0);
-            layoutSearch.SetColumnSpan(comboBoxSource, 3);
             layoutSearch.Controls.Add(CreateLabel("Search.Text"), 0, 1);
             layoutSearch.Controls.Add(textBoxSearch, 1, 1);
-            layoutSearch.SetColumnSpan(textBoxSearch, 3);
             layoutSearch.Controls.Add(CreateLabel("Search.MatchMode"), 0, 2);
             layoutSearch.Controls.Add(comboBoxMatchMode, 1, 2);
-            layoutSearch.SetColumnSpan(comboBoxMatchMode, 3);
             layoutSearch.Controls.Add(labelSavedScan, 0, 3);
             layoutSearch.Controls.Add(comboBoxSavedScan, 1, 3);
-            layoutSearch.SetColumnSpan(comboBoxSavedScan, 3);
 
             buttonToggleFilters = new AntdUI.Button
             {
@@ -239,9 +237,13 @@ namespace c2flux
                     AntdThemeService.SearchFiltersPaddingBottom)
             };
             layoutFilters.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            layoutFilters.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            layoutFilters.ColumnStyles.Add(new ColumnStyle(
+                SizeType.Percent,
+                AntdThemeService.SearchFiltersFirstInputColumnWidthPercent));
             layoutFilters.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            layoutFilters.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            layoutFilters.ColumnStyles.Add(new ColumnStyle(
+                SizeType.Percent,
+                AntdThemeService.SearchFiltersSecondInputColumnWidthPercent));
 
             checkBoxMinimumSize = new AntdUI.Checkbox
             {
@@ -325,17 +327,32 @@ namespace c2flux
             };
             dataGridViewResults.RowTemplate.Height =
                 AntdThemeService.SearchResultsRowHeight;
-            dataGridViewResults.Columns.Add(CreateTextColumn("Drive", "Search.Drive", 70));
-            dataGridViewResults.Columns.Add(CreateTextColumn("FullPath", "Search.FullPath", 360));
-            dataGridViewResults.Columns.Add(CreateTextColumn("Name", "Common.Name", 220));
-            dataGridViewResults.Columns.Add(CreateTextColumn("SizeBytes", "Common.Size", 110));
-            dataGridViewResults.Columns.Add(CreateTextColumn("ModifiedLocal", "Search.Modified", 150));
+            dataGridViewResults.Columns.Add(CreateTextColumn(
+                "Drive",
+                "Search.Drive",
+                AntdThemeService.SearchResultsDriveColumnWidth));
+            dataGridViewResults.Columns.Add(CreateTextColumn(
+                "FullPath",
+                "Search.FullPath",
+                AntdThemeService.SearchResultsFullPathColumnWidth));
+            dataGridViewResults.Columns.Add(CreateTextColumn(
+                "Name",
+                "Common.Name",
+                AntdThemeService.SearchResultsNameColumnWidth));
+            dataGridViewResults.Columns.Add(CreateTextColumn(
+                "SizeBytes",
+                "Common.Size",
+                AntdThemeService.SearchResultsSizeColumnWidth));
+            dataGridViewResults.Columns.Add(CreateTextColumn(
+                "ModifiedLocal",
+                "Search.Modified",
+                AntdThemeService.SearchResultsModifiedColumnWidth));
             dataGridViewResults.SetResponsiveColumns(
-                ("Drive", 7),
-                ("FullPath", 43),
-                ("Name", 22),
-                ("SizeBytes", 12),
-                ("ModifiedLocal", 16));
+                ("Drive", AntdThemeService.SearchResultsDriveColumnWidthPercent),
+                ("FullPath", AntdThemeService.SearchResultsFullPathColumnWidthPercent),
+                ("Name", AntdThemeService.SearchResultsNameColumnWidthPercent),
+                ("SizeBytes", AntdThemeService.SearchResultsSizeColumnWidthPercent),
+                ("ModifiedLocal", AntdThemeService.SearchResultsModifiedColumnWidthPercent));
             dataGridViewResults.ColumnHeaderMouseClick += dataGridViewResults_ColumnHeaderMouseClick;
 
             contextMenuResults = new ContextMenuStrip();
@@ -454,6 +471,54 @@ namespace c2flux
                 }
 
             comboBoxSource.SelectedIndex = 0;
+        }
+
+        private void SelectInitialDriveSource()
+        {
+            if (string.IsNullOrWhiteSpace(_initialDrivePath))
+                return;
+
+            for (int index = 0; index < comboBoxSource.Items.Count; index++)
+            {
+                if (comboBoxSource.Items[index] is not SearchSourceItem sourceItem)
+                    continue;
+
+                if (sourceItem.Kind != SearchSourceKind.LocalDrive)
+                    continue;
+
+                if (!string.Equals(
+                        NormalizeDrivePath(sourceItem.DrivePath),
+                        _initialDrivePath,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                comboBoxSource.SelectedIndex = index;
+                return;
+            }
+        }
+
+        private static string NormalizeDrivePath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return null;
+
+            string normalizedPath = path.Trim().Trim('"');
+
+            if (normalizedPath.Length == 2 && normalizedPath[1] == ':')
+            {
+                normalizedPath += "\\";
+            }
+
+            try
+            {
+                return Path.GetPathRoot(normalizedPath);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private void LoadSavedScans()
@@ -1091,11 +1156,21 @@ namespace c2flux
             dateTimeModifiedBefore.Value = NormalizeDate(_settings.SearchModifiedBefore);
             textBoxFileTypes.Text = _settings.SearchFileTypes ?? string.Empty;
 
-            dataGridViewResults.Columns[0].Width = Math.Max(40, _settings.SearchColumnDriveWidth);
-            dataGridViewResults.Columns[1].Width = Math.Max(80, _settings.SearchColumnPathWidth);
-            dataGridViewResults.Columns[2].Width = Math.Max(80, _settings.SearchColumnNameWidth);
-            dataGridViewResults.Columns[3].Width = Math.Max(60, _settings.SearchColumnSizeWidth);
-            dataGridViewResults.Columns[4].Width = Math.Max(80, _settings.SearchColumnModifiedWidth);
+            dataGridViewResults.Columns[0].Width = Math.Max(
+                AntdThemeService.SearchResultsDriveColumnMinimumWidth,
+                _settings.SearchColumnDriveWidth);
+            dataGridViewResults.Columns[1].Width = Math.Max(
+                AntdThemeService.SearchResultsFullPathColumnMinimumWidth,
+                _settings.SearchColumnPathWidth);
+            dataGridViewResults.Columns[2].Width = Math.Max(
+                AntdThemeService.SearchResultsNameColumnMinimumWidth,
+                _settings.SearchColumnNameWidth);
+            dataGridViewResults.Columns[3].Width = Math.Max(
+                AntdThemeService.SearchResultsSizeColumnMinimumWidth,
+                _settings.SearchColumnSizeWidth);
+            dataGridViewResults.Columns[4].Width = Math.Max(
+                AntdThemeService.SearchResultsModifiedColumnMinimumWidth,
+                _settings.SearchColumnModifiedWidth);
 
             if (_settings.HasSearchWindowBounds)
             {
