@@ -36,4 +36,3 @@ It is a refactored continuation of [WTF – Where's the Filespace](https://githu
 ## License
 
 Licensed under the [GNU General Public License v3.0](LICENSE).
-
