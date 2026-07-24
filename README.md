@@ -15,5 +15,6 @@ c² flux - Tree Scanner introduces a completely redesigned user interface and si
 ## Coming Soon
 
 
-<img width="1288" height="855" alt="grafik" src="https://github.com/user-attachments/assets/4d03ae9e-61c8-48e5-949f-2b07fec340ad" />
+<img width="1508" height="855" alt="grafik" src="https://github.com/user-attachments/assets/47b00346-3bf8-4a43-ad54-8a0e970da33a" />
+
 
